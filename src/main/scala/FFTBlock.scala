@@ -1,0 +1,152 @@
+package fft
+
+import chisel3._
+import chisel3.util._
+import dsptools._
+import dsptools.numbers._
+
+import dspblocks._
+import freechips.rocketchip.amba.axi4._
+import freechips.rocketchip.amba.axi4stream._
+import freechips.rocketchip.config._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.regmapper._
+import freechips.rocketchip.tilelink._
+
+abstract class FFTBlock [T <: Data : Real: BinaryRepresentation, D, U, E, O, B <: Data] (params: FFTParams[T], beatBytes: Int) extends LazyModule()(Parameters.empty) with DspBlock[D, U, E, O, B] with HasCSR {
+
+  val streamNode = AXI4StreamIdentityNode()
+
+  lazy val module = new LazyModuleImp(this) {
+    val (in, _)  = streamNode.in(0)
+    val (out, _) = streamNode.out(0)
+
+    //  FFT module
+    val fft = Module(new SDFFFT(params))
+
+    // Number of stages
+    val numStages = log2Ceil(params.numPoints)
+    
+    // Control registers
+    val fftSize         = RegInit(0.U(log2Ceil(numStages).W))
+    val fftDir          = RegInit(true.B)
+    val keepMSBorLSBReg = RegInit(0.U((numStages).W))
+
+    // Status registers
+    val busy            = RegInit(false.B)
+    val overflowReg     = RegInit(0.U(log2Ceil(numStages).W))
+
+    // Connect FFT signals to registers
+    //fft.io.flushDataOut := flushData
+    busy := fft.io.busy
+    if (params.runTime) {
+      fft.io.fftSize.get := fftSize
+    }
+    if (params.keepMSBorLSBReg) {
+      fft.io.keepMSBorLSBReg.get := keepMSBorLSBReg.asBools
+    }
+    if (params.fftDirReg) {
+      fft.io.fftDirReg.get := fftDir
+    }
+    if (params.overflowReg) {
+      overflowReg := fft.io.overflow.get.asUInt
+    }
+
+      // Define register fields
+    val fields = Seq(
+      // settable registers
+      RegField(log2Ceil(numStages), fftSize,
+        RegFieldDesc(name = "fftSize", desc = "contains fft size which is used for run time configurability control")),
+      RegField(1, fftDir, 
+        RegFieldDesc(name = "fftDir", desc = "transform direction: fft or ifft")),
+      RegField(numStages, keepMSBorLSBReg,
+        RegFieldDesc(name = "keepMSBorLSBReg", desc = "defines scaling behaviour for each stage")),
+      // read-only status registers
+      RegField.r(1, busy, 
+        RegFieldDesc(name = "busy", desc = "indicates if fft core is in the state flush data")),
+      RegField.r(log2Ceil(numStages), overflowReg,
+        RegFieldDesc(name = "overflowReg", desc = "returns overflow status for the each stage"))
+    )
+
+      // Define abstract register map so it can be AXI4, Tilelink, APB, AHB
+    regmap(fields.zipWithIndex.map({ case (f, i) => i * beatBytes -> Seq(f)}): _*)
+    
+    // Connect inputs
+    fft.io.in.valid    := in.valid
+    fft.io.in.bits     := in.bits.data.asTypeOf(params.protoIQ)
+    in.ready           := fft.io.in.ready
+    fft.io.lastIn      := in.bits.last
+    
+
+    // Connect output
+    out.valid        := fft.io.out.valid
+    fft.io.out.ready := out.ready
+    out.bits.data    := fft.io.out.bits.asUInt
+    out.bits.last := fft.io.lastOut
+     // It is not necessary to connect these signals
+    // out.bits.id   := 0.U
+    // out.bits.dest := 0.U
+  }
+}
+
+class AXI4FFTBlock[T <: Data : Real: BinaryRepresentation](params: FFTParams[T], address: AddressSet, _beatBytes: Int = 4)(implicit p: Parameters) extends FFTBlock[T, AXI4MasterPortParameters, AXI4SlavePortParameters, AXI4EdgeParameters, AXI4EdgeParameters, AXI4Bundle](params, _beatBytes) with AXI4DspBlock with AXI4HasCSR {
+  override val mem = Some(AXI4RegisterNode(address = address, beatBytes = _beatBytes))
+}
+
+class TLFFTBlock[T <: Data : Real: BinaryRepresentation](val params: FFTParams[T], address: AddressSet, beatBytes: Int = 4)(implicit p: Parameters) extends FFTBlock[T, TLClientPortParameters, TLManagerPortParameters, TLEdgeOut, TLEdgeIn, TLBundle](params, beatBytes) with TLDspBlock with TLHasCSR {
+  val devname = "TLFFTBlock"
+  val devcompat = Seq("fft", "radardsp")
+  val device = new SimpleDevice(devname, devcompat) {
+    override def describe(resources: ResourceBindings): Description = {
+      val Description(name, mapping) = super.describe(resources)
+      Description(name, mapping)
+    }
+  }
+  // make diplomatic TL node for regmap
+  override val mem = Some(TLRegisterNode(address = Seq(address), device = device, beatBytes = beatBytes))
+}
+
+object FFTDspBlockTL extends App
+{
+  val paramsFFT = FFTParams.fixed(
+    dataWidth = 16,
+    twiddleWidth = 16,
+    numPoints = 1024,
+    runTime = true,
+    numAddPipes = 1,
+    numMulPipes = 1,
+    expandLogic = Array.fill(log2Up(1024))(0),
+    keepMSBorLSB = Array.fill(log2Up(1024))(true),
+    overflowReg = true,
+    keepMSBorLSBReg = true,
+    binPoint = 1
+  )
+  val baseAddress = 0x500
+  implicit val p: Parameters = Parameters.empty
+  val fftModule = LazyModule(new TLFFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), beatBytes = 4) with dspblocks.TLStandaloneBlock)
+  
+  chisel3.Driver.execute(args, ()=> fftModule.module)
+}
+
+object FFTDspBlockAXI4 extends App
+{
+  val paramsFFT = FFTParams.fixed(
+    dataWidth = 16,
+    twiddleWidth = 16,
+    numPoints = 1024,
+    runTime = true,
+    numAddPipes = 1,
+    numMulPipes = 1,
+    expandLogic = Array.fill(log2Up(1024))(0),
+    keepMSBorLSB = Array.fill(log2Up(1024))(true),
+    overflowReg = true,
+    keepMSBorLSBReg = true,
+    binPoint = 1
+  )
+  val baseAddress = 0x500 // just to check if verilog code is succesfully generated or not
+  implicit val p: Parameters = Parameters.empty
+  val fftModule = LazyModule(new AXI4FFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4) with dspblocks.AXI4StandaloneBlock {
+    override def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
+  })
+  chisel3.Driver.execute(args, ()=> fftModule.module)
+}
