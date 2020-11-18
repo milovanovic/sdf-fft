@@ -1,0 +1,8 @@
+test_run_dir/
+*.fir
+*.v
+*.conf
+*.json
+
+target/
+project/
