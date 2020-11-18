@@ -563,7 +563,8 @@ object SDFFFTApp extends App
     binPoint = 14,
     minSRAMdepth = 32
   )
- chisel3.Driver.execute(args,()=>new SDFFFT(params))
+ 
+  chisel3.Driver.execute(Array("--target-dir", "generated-rtl", "--top-name", "SDFFFT"), ()=>new SDFFFT(params))
   
 //   val arguments = Array(
 //     "-X", "verilog",
