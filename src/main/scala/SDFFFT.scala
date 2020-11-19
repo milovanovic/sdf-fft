@@ -552,16 +552,16 @@ object SDFFFTApp extends App
 {
   val params = FFTParams.fixed(
     dataWidth = 16,
+    binPoint = 0,
     twiddleWidth = 16,
     numPoints = 1024,
     decimType = DIFDecimType,
+    bitReverse = true,
     numAddPipes = 1,
     numMulPipes = 1,
-    runTime = false,
+    runTime = true,
     expandLogic = Array.fill(log2Up(1024))(0),
     keepMSBorLSB = Array.fill(log2Up(1024))(true),
-    binPoint = 14,
-    minSRAMdepth = 32
   )
  
   chisel3.Driver.execute(Array("--target-dir", "generated-rtl", "--top-name", "SDFFFT"), ()=>new SDFFFT(params))
