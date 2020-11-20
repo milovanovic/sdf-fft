@@ -287,6 +287,7 @@ class FFTBlockWithWindowingSpec extends FlatSpec with Matchers {
     runTime = true,
     expandLogic = Array.fill(log2Up(1024))(0),
     keepMSBorLSB = Array.fill(log2Up(1024))(true),
+    minSRAMdepth = 1024
   )
   //BigDecimal(ex).setScale(0, BigDecimal.RoundingMode.HALF_UP).toBigInt
   

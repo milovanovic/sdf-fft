@@ -2,6 +2,8 @@ package fft
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental._
+
 import dsptools._
 import dsptools.numbers._
 
@@ -12,6 +14,32 @@ import freechips.rocketchip.config._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.regmapper._
 import freechips.rocketchip.tilelink._
+
+trait AXI4FFTStandaloneBlock extends AXI4FFTBlock[FixedPoint] {
+  def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
+  val ioMem = mem.map { m => {
+    val ioMemNode = BundleBridgeSource(() => AXI4Bundle(standaloneParams))
+
+    m :=
+      BundleBridgeToAXI4(AXI4MasterPortParameters(Seq(AXI4MasterParameters("bundleBridgeToAXI4")))) :=
+      ioMemNode
+
+    val ioMem = InModuleBody { ioMemNode.makeIO() }
+    ioMem
+  }}
+  
+  val ioInNode = BundleBridgeSource(() => new AXI4StreamBundle(AXI4StreamBundleParameters(n = 4)))
+  val ioOutNode = BundleBridgeSink[AXI4StreamBundle]()
+
+  ioOutNode :=
+    AXI4StreamToBundleBridge(AXI4StreamSlaveParameters()) :=
+    streamNode :=
+    BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = 4)) :=
+    ioInNode
+
+  val in = InModuleBody { ioInNode.makeIO() }
+  val out = InModuleBody { ioOutNode.makeIO() }
+}
 
 abstract class FFTBlock [T <: Data : Real: BinaryRepresentation, D, U, E, O, B <: Data] (params: FFTParams[T], beatBytes: Int) extends LazyModule()(Parameters.empty) with DspBlock[D, U, E, O, B] with HasCSR {
 
@@ -134,19 +162,19 @@ object FFTDspBlockAXI4 extends App
     dataWidth = 16,
     twiddleWidth = 16,
     numPoints = 1024,
+    useBitReverse = false,
     runTime = true,
     numAddPipes = 1,
     numMulPipes = 1,
     expandLogic = Array.fill(log2Up(1024))(0),
     keepMSBorLSB = Array.fill(log2Up(1024))(true),
-    overflowReg = true,
-    keepMSBorLSBReg = true,
-    binPoint = 1
+    overflowReg = false,
+    keepMSBorLSBReg = false,
+    binPoint = 0,
+    minSRAMdepth = 1024
   )
   val baseAddress = 0x500 // just to check if verilog code is succesfully generated or not
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new AXI4FFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4) with dspblocks.AXI4StandaloneBlock {
-    override def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
-  })
+  val fftModule = LazyModule(new AXI4FFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4) with AXI4FFTStandaloneBlock)
   chisel3.Driver.execute(args, ()=> fftModule.module)
 }

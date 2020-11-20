@@ -556,12 +556,13 @@ object SDFFFTApp extends App
     twiddleWidth = 16,
     numPoints = 1024,
     decimType = DIFDecimType,
-    bitReverse = true,
+    useBitReverse = true,
     numAddPipes = 1,
     numMulPipes = 1,
     runTime = true,
     expandLogic = Array.fill(log2Up(1024))(0),
     keepMSBorLSB = Array.fill(log2Up(1024))(true),
+    minSRAMdepth = 1024
   )
  
   chisel3.Driver.execute(Array("--target-dir", "generated-rtl", "--top-name", "SDFFFT"), ()=>new SDFFFT(params))
