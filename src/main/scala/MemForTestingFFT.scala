@@ -38,9 +38,9 @@ abstract class MemForTestingFFT[T <: Data : Real : BinaryRepresentation, D, U, E
 
     val rom = Wire(Vec(memSize, proto.cloneType))
     
-    val f1 = 32/memSize
-    // fill memory with real data only
-    val realSin = (0 until memSize).map(i => Complex(((math.sin(2 * math.Pi * f1 * i))*(math.pow(2,14)-1)), 0)).toVector
+    val f1 = 0.53
+
+    val realSin = (0 until memSize).map(i => Complex(((math.sin(2 * math.Pi * f1 * i))*(math.pow(2,13)-1)), (math.sin(2 * math.Pi * f1 * i))*(math.pow(2,13)-1))).toVector
     
     (0 until 1024).map(n => {
       rom(n).real := Real[T].fromDouble(realSin(n).real)
@@ -56,8 +56,9 @@ abstract class MemForTestingFFT[T <: Data : Real : BinaryRepresentation, D, U, E
       cntr := cntr + 1.U
     }
     outData := rom(cntr)
+    dontTouch(outData)
     
-    out.valid := RegNext(startReading)
+    out.valid := RegNext(startReading, false.B)
     out.bits.data := outData.asUInt
     out.bits.last := runLast
     

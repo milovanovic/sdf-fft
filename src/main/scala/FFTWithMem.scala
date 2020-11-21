@@ -18,7 +18,8 @@ import freechips.rocketchip.tilelink._
 class FFTWithMem[T <: Data : Real : BinaryRepresentation](val paramsFFT: FFTParams[T], val fftAddress: AddressSet, val fftRAM: AddressSet, val memAddress: AddressSet, val protoMem: T, val beatBytes: Int)(implicit p: Parameters) extends LazyModule {
   
  // Instantiate lazy modules
-  val fft = LazyModule(new FFTBlockWithWindowing(csrAddress = fftAddress, ramAddress = fftRAM, paramsFFT, beatBytes = beatBytes))
+  val fft = LazyModule(new AXI4FFTBlock(paramsFFT, fftAddress, beatBytes))
+  //LazyModule(new FFTBlockWithWindowing(csrAddress = fftAddress, ramAddress = fftRAM, paramsFFT, beatBytes = beatBytes))
   
   val memForTest = LazyModule(new AXI4MemForTestingFFT(DspComplex(protoMem), memAddress, beatBytes, paramsFFT.numPoints))
   
@@ -53,7 +54,6 @@ class FFTWithMem[T <: Data : Real : BinaryRepresentation](val paramsFFT: FFTPara
 
 object FFTWithMemApp extends App
 {
-  
    val fftParams = FFTParams.fixed(
       dataWidth = 16,
       binPoint  = 0,
