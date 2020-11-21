@@ -56,7 +56,7 @@ abstract class FFTBlock [T <: Data : Real: BinaryRepresentation, D, U, E, O, B <
     val numStages = log2Ceil(params.numPoints)
     
     // Control registers
-    val fftSize         = RegInit(0.U(log2Ceil(numStages).W))
+    val fftSize         = RegInit(numStages.U(log2Ceil(numStages + 1).W))
     val fftDir          = RegInit(true.B)
     val keepMSBorLSBReg = RegInit(0.U((numStages).W))
 
