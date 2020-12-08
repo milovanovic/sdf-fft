@@ -26,8 +26,8 @@ def javacOptionsVersion(scalaVersion: String): Seq[String] = {
 
 name := "fft"
 version := "1.0"
-scalaVersion := "2.12.11"
-crossScalaVersions := Seq("2.12.11", "2.11.12")
+scalaVersion := "2.12.12"
+crossScalaVersions := Seq("2.12.12", "2.11.12")
 
 resolvers ++= Seq(
   Resolver.sonatypeRepo("snapshots"),
