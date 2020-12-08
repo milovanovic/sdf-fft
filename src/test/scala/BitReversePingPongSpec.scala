@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package fft
 
 import chisel3.experimental.FixedPoint
