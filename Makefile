@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 base_dir ?= $(abspath .)
 build_dir ?= $(base_dir)/generated-rtl
 

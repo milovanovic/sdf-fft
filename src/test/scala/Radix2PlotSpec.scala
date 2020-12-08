@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package fft
 
 import dsptools._
@@ -269,5 +271,4 @@ class Radix2PlotSpec extends FlatSpec with Matchers {
     } should be (true)
   }
 }
-
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package fft
 
 import org.scalatest.{FlatSpec, Matchers}
@@ -123,3 +125,4 @@ class Radix22RandomSpec extends FlatSpec with Matchers {
     }
   }
 }
+

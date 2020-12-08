@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package fft
 
 import chisel3.experimental.FixedPoint
@@ -260,16 +262,4 @@ class BitReversePingPongSpec extends FlatSpec with Matchers {
     FixedPingPongTester(paramsPingPong, testSignal) should be (true)
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
