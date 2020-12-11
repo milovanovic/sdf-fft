@@ -1,4 +1,5 @@
 
+
 A Single-path Delay Feedback (SDF) FFT Chisel Generator
 =======================================================
 
@@ -63,8 +64,18 @@ Explanation of some important control signals inside the design:
 
 Assumption is that `lastIn` is always asserted at the end of the fft window. Preceding block or preceding logic should take care of correct `lastIn` signal generation and potential addition of the zero padding feature.
 
-The SDF-FFT core is ready to accept new data as far as all delay buffers are filled or output side is ready to accept data. When flush is issued then core responds by deasserting ready signal until it's returned to `sIdle` state.
+The SDF-FFT core is ready to accept new data as far as all delay buffers are filled or output side is ready to accept data. When flush is issued then core responds by deasserting ready signal until it's returned to `sIdle` state. 
 
+Initial latency of the core depends directly on fft size, number of included pipeline register, multiplier structure as well as of the parameter `useBitReverse`.  It has the same value for radix 2 and radix 2<sup>2</sup> scheme and for both DIT and DIF butterfly types. 
+
+|        Parameters settings                             | Initial Latency
+|:-----------------------------------------------:|:-----------:|
+| `use4Muls` = true  && `useBitReverse` = false       |  (2 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`) + `numPoints`                                                   |
+| `use4Muls` = true  && `useBitReverse` = true        |     (2 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`)  + 3 \*`numPoints`                                                  |
+| `use4Muls` = false  && `useBitReverse` = false      |   (3 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`) + `numPoints`                                                             |
+| `use4Muls` = false  && `useBitReverse` = true       |   (3 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`)  + 3 \* `numPoints`                                                                   |
+
+**Note**: If run time configurability is included then `numPoints` inside table should be replaced by register value used for fft size configuration.
 #### Dsp Block
 
 The whole SDF FFT generator is wrapped as generic DSP block in a diplomatic interface which is actually AXI4-Stream for inputs and outputs and optional memory-mapped bus (TileLink, AXI4, APB or AHB) for control and status registers. Appropriate Chisel code which does above mentioned wrapping is available inside `FFTBlock.scala`.
@@ -145,3 +156,4 @@ Tester functions such as `peek`, `poke` and `except`, available inside `DspTeste
 [comment]: <> (master branch - include windowing as a parameter, that is the main difference in respect to version-0.2 branch)
 
 [comment]: <> (dev branch - branch for further improvements and testing, e.g. more tests with AXI4 master and stream model)
+
