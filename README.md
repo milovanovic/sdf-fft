@@ -71,9 +71,9 @@ Initial latency of the core depends directly on fft size, number of included pip
 |        Parameters settings                             | Initial Latency
 |:-----------------------------------------------:|:-----------:|
 | `use4Muls` = true  && `useBitReverse` = false       |  (2 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`) + `numPoints`                                                   |
-| `use4Muls` = true  && `useBitReverse` = true        |     (2 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`)  + 3 \*`numPoints`                                                  |
+| `use4Muls` = true  && `useBitReverse` = true        |     (2 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`)  + 2 \*`numPoints`                                                  |
 | `use4Muls` = false  && `useBitReverse` = false      |   (3 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`) + `numPoints`                                                             |
-| `use4Muls` = false  && `useBitReverse` = true       |   (3 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`)  + 3 \* `numPoints`                                                                   |
+| `use4Muls` = false  && `useBitReverse` = true       |   (3 \* `numAddPipes` + `numMulPipes`)  \* log<sub>2</sub>(`numPoints`)  + 2 \* `numPoints`                                                                   |
 
 **Note**: If run time configurability is included then `numPoints` inside table should be replaced by register value used for fft size configuration.
 #### Dsp Block
