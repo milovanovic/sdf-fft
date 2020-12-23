@@ -4,6 +4,10 @@ package fft
 
 import chisel3._
 
+import dsptools._
+import dsptools.numbers._
+
+// Try to integrate it into chisel3 util library
 object RegEnableWithReset {
 
   /** Returns a register with the specified next, update enable gate, manual reset and reset initialization.
@@ -20,7 +24,7 @@ object RegEnableWithReset {
     r
   }
 }
-
+// Try to integrate it into chisel3 util library
 object ShiftRegisterWithReset
 {
   /** Returns the n-cycle delayed version of the input signal.
@@ -39,4 +43,19 @@ object ShiftRegisterWithReset
       in
     }
   }
+}
+
+/**
+  * Simple radix 2 Butterfly
+  */
+object Butterfly extends hasContext {
+  def apply[T <: Data : Real : BinaryRepresentation](in: Seq[DspComplex[T]]): Seq[DspComplex[T]] = {
+    require(in.length == 2, "2-point DFT only for no defined twiddle type")
+    (Seq(DspContext.alter(
+      DspContext.current.copy(overflowType = Grow, binaryPointGrowth = 0))
+        { in(0) context_+ in(1) },
+      DspContext.alter(
+        DspContext.current.copy(overflowType = Grow, binaryPointGrowth = 0))
+        { in(0) context_- in(1) }))
+   }
 }
