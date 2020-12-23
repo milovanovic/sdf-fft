@@ -1,5 +1,4 @@
 
-
 A Single-path Delay Feedback (SDF) FFT Chisel Generator
 =======================================================
 
@@ -21,12 +20,13 @@ The first two are fairly classical radix 2 and radix 4 FFT schemes and both requ
 The Chisel generator in this repository implements radix 2 and radix 2<sup>2</sup> sdf-fft architecture and it is is described with following Scala files available inside`src/main/scala` directory:
 * `SDFChainRadix2.scala` - contains dif/dit radix 2 sdf-fft module.
 * `SDFChainRadix22.scala` - contains dif/dit radix 2<sup>2</sup> sdf-fft module.
-* `SDFChainRadix22RunTime.scala` - contains radix 2<sup>2</sup> module which is used only if full run time configurabilty needs to be provided. It inserts additional muxes at each stage in order to keep same number of multipliers as previous radix 2<sup>2</sup> module and provide any power of 2 fft size through run time configurability.
-* `SDFFFTUtil.scala` - contains definition of the `RegEnableWithReset` and `ShiftRegisterWithReset`. Those objects differ from similar objects defined in [chisel3 util library](https://github.com/freechipsproject/chisel3/blob/v3.3.2/src/main/scala/chisel3/util/Reg.scala) in presence of manual reset.
-* `SDFFFT.scala` - contains parameters definition, simple butterfly object and top level module `SDFFFT`.
+* `SDFChainRadix22RunTime.scala` - contains radix 2<sup>2</sup> module which is used only if full run-time configurabilty needs to be achieved. Additional muxes at each stage are inserted in order to keep same number of multipliers as previous radix 2<sup>2</sup> module and at the same time provide any power of 2 fft size through run time configurability.
+* `SDFFFTUtil.scala` - contains definition of the `RegEnableWithReset` and `ShiftRegisterWithReset`. Those objects differ from similar objects defined in [chisel3 util library](https://github.com/freechipsproject/chisel3/blob/v3.3.2/src/main/scala/chisel3/util/Reg.scala) in presence of manual reset. Besides those objects, this file contains  object `Butterfly`, instantiated inside every sdf-fft stage.
+* `SDFFFT.scala` - contains top level module `SDFFFT`.
+* `SDFFFTParams.scala` - contains parameters definition.
 * `BitReversePingPong.scala` - contains ping-pong buffer and does bit-reversed addressing.
-* `FFTBlock.scala` - contains description of `FFTBlock` DspBlock.
-* `FFTBlockWithWindowing.scala` - contains description of `FFTBlockWithWindowing` AXI4DspBlock. Inside DSPBlock, memory for window coefficients is instantiated where memory mapped AXI4 bus is used for writing data into the memory,
+* `FFTBlock.scala` - contains description of `FFTBlock`.
+* `FFTBlockWithWindowing.scala` - contains description of `FFTBlockWithWindowing` AXI4DspBlock. Inside module, memory for window coefficients is instantiated where memory mapped AXI4 bus is used for writing data into the memory.
 ## Interface of the SDF-FFT Chisel Generator
 
 Interface of the implemented SDF-FFT generator showing inout signals as well as control and status registers is presented in the figure below.
@@ -54,13 +54,13 @@ Simple state machine which controls data flow is shown below.
 
 On the FSM diagram some signals are omitted for clarity but brief explanation of the each state is given below:
 * `sIdle` - reset state and some register initializations are done in this state. System stays in `sIdle` until fire signal (`io.in.ready && io.in.valid`) from input side doesn't assert.
-* `sProcess` - state for data processing. When `io.in.fire` is not active, system stays in this state but counters predetermined for stages control are freezed. Transition from `sProcess` to `sFlush` state happens if input `lastIn`and `io.in.fire`signals are activated.
+* `sProcess` - state for data processing. When `io.in.fire` is not active, system stays in this state but counters predetermined for stages control are freezed. Transition from `sProcess` to `sFlush` state happens if  `lastIn`and `io.in.fire`signals are activated.
 * `sFlush` - in this state data flushing is active. Once when `lastOut` (indicating last sample in the output stream) is asserted, FSM transits to `sIdle` state.
 
 Explanation of some important control signals inside the design:
 
 * `enableInit`  is enable signal for first stage. It is active when `io.in.fire` is asserted, when flushing data is activated and output side is ready to accept new data (`io.out.ready` is activated). Condition for `io.out.ready` is there to be sure that data is not going to be dropped when flushing is in the process. Enable signal for the each stage is delayed version of the `enableInit` where depth of the delay line depends directly of the number of the pipeline registers inserted after each stage. 
-* `initialOutDone` indicates that last stage will have first valid data on output after passing data through pipeline registers.
+* `initialOutDone`in active state indicates that last stage will have first valid data on output after passing data through pipeline registers.
 
 Assumption is that `lastIn` is always asserted at the end of the fft window. Preceding block or preceding logic should take care of correct `lastIn` signal generation and potential addition of the zero padding feature.
 
@@ -144,8 +144,10 @@ To run a specific test written in Scala simulation environment for instance `Rad
 
 **Note**: All above described test cases are available for radix 2 sdf-fft module as well.
 
-For plotting FFT/IFFT, SQNR and other graphs, scala library `breeze-viz` has been used. This dependency is added inside `build.sbt` file since `rocket-dsptools` snapshot does not include it.
+For plotting FFT/IFFT, SQNR and other graphs, scala library `breeze-viz` has been used. This dependency is added inside `build.sbt`  since `rocket-dsptools` snapshot does not include it.
 Tester functions such as `peek`, `poke` and `except`, available inside `DspTester` (check [dsptools Chisel library](http://github.com/ucb-bar/dsptools)), are extensively used for design testing.
+
+Much more useful information about this work can be found inside ["A Highly Parametrizable Chisel HCL Generator of Single-Path Delay Feedback FFT Processors"](https://ieeexplore.ieee.org/document/8889581) paper published on International Conference on Microelectronics, MIEL 2019.
 
 [comment]: <> (TODO: Check whether radix 2^2 full run time configurability has a better performances and resource utilization than radix 2 with run time configurability
 )
@@ -156,4 +158,3 @@ Tester functions such as `peek`, `poke` and `except`, available inside `DspTeste
 [comment]: <> (master branch - include windowing as a parameter, that is the main difference in respect to version-0.2 branch)
 
 [comment]: <> (dev branch - branch for further improvements and testing, e.g. more tests with AXI4 master and stream model)
-
