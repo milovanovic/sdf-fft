@@ -11,7 +11,7 @@ import dsptools.numbers._
 
 import breeze.numerics.{cos, sin}
 import scala.math.{Pi, pow}
-import craft.ShiftRegisterMem
+// import craft.ShiftRegMem
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 
@@ -432,7 +432,7 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   
   if (params.decimType == DIFDecimType) {
     if (params.minSRAMdepth < delay) {
-      shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, name = this.name + s"_mem")
+      shift_out := ShiftRegMem(shift_in, delay, en = io.en, name = this.name + s"_mem")
     }
     else {
       shift_out := ShiftRegister(shift_in, delay, en = io.en)
@@ -440,7 +440,7 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   }
   else {
     if (params.minSRAMdepth < delay) {
-      shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
+      shift_out := ShiftRegMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
     }
     else {
       shift_out := ShiftRegister(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))

@@ -12,7 +12,7 @@ import dsptools.numbers._
 import breeze.numerics.{cos, sin}
 import scala.math.{Pi, pow}
 import dspblocks.CounterWithReset
-import craft.ShiftRegisterMem
+// import craft.ShiftRegMem
 
 class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module {
   params.checkNumPointsPow2()
@@ -379,14 +379,14 @@ class SDFStageRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
   val shift_out = Wire(shift_in.cloneType)
   
   if (params.decimType == DIFDecimType) {
-    shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, name = this.name + s"_mem")
+    shift_out := ShiftRegMem(shift_in, delay, en = io.en, name = this.name + s"_mem")
     //shift_out := ShiftRegister(shift_in, delay, en = io.en)
   }
   else {
-    shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
+    shift_out := ShiftRegMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
     //shift_out := ShiftRegister(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
   }
-  //val shift_out = if (params.decimType == DIFDecimType) ShiftRegisterMem(shift_in, delay, en = io.en) else ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
+  //val shift_out = if (params.decimType == DIFDecimType) ShiftRegMem(shift_in, delay, en = io.en) else ShiftRegMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
   
   val butt_outputs = Butterfly[T](Seq(shift_out, inp))
   val overflow = Wire(Bool())
