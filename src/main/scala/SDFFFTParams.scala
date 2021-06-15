@@ -23,6 +23,8 @@ case class FFTParams[T <: Data] (
     numPoints       : Int ,                  // number of points in FFT
     protoTwiddle    : DspComplex[T],         // twiddle data type
     protoIQ         : DspComplex[T],         // input data type
+    protoIQOut      : DspComplex[T],         // output data type
+    trimEnable      : Boolean,               // trim output data to protoIQout type
     protoWin        : T,                     // window coefficients data type
     fftType         : String,                // type of FFT to use
     decimType       : DecimType,             // use DIT or DIF version
@@ -48,7 +50,7 @@ case class FFTParams[T <: Data] (
   final val allowedFftTypes      = Seq("sdf") //for future improvements it is open to add new fft types
   final val allowedDecimTypes    = Seq(DITDecimType, DIFDecimType)
   final val allowedSDFRadices    = Seq("2","2^2")
-  
+
   // Common require functions used in FFT blocks
   def checkNumPointsPow2() {
     require(isPow2(numPoints), "number of points must be a power of 2")
@@ -62,7 +64,7 @@ case class FFTParams[T <: Data] (
   def checkSDFRadix() {
     require(allowedSDFRadices.contains(sdfRadix), s"""Radix must be one of the following: ${allowedSDFRadices.mkString(", ")}""")
   }
-  
+
   // muxes can not accept nonequal data types beccause of that only specific stages can support grow logic
   def checkExpandLogic() {
     //used only for radix 2^2 and full run time configurability
@@ -86,10 +88,13 @@ case class FFTParams[T <: Data] (
     require(numAddPipes!=0 | numMulPipes!=0, s"This design requires number of pipeline registers to be at least one")
   }
 }
-//TODO: Think to rename runTime and allign everything 
+//TODO: Think to rename runTime and allign everything
 object FFTParams {
   def fixed(dataWidth       : Int = 16,
             binPoint        : Int = 14,
+            dataWidthOut    : Int = 16,
+            binPointOut     : Int = 14,
+            trimEnable      : Boolean = false,
             twiddleWidth    : Int = 16,
             numPoints       : Int = 2,
             keepMSBorLSBReg : Boolean = false,
@@ -112,6 +117,7 @@ object FFTParams {
             windowFunc      : WindowFunctionType = WindowFunctionTypes.None()
             ): FFTParams[FixedPoint] = {
     val protoIQ      = DspComplex(FixedPoint(dataWidth.W, binPoint.BP))
+    val protoIQOut   = DspComplex(FixedPoint(dataWidthOut.W, binPointOut.BP))
     // to allow for 1, -1, j, and -j to be expressed.
     val protoTwiddle = DspComplex(FixedPoint(twiddleWidth.W, (twiddleWidth-2).BP))
     // protoIQs
@@ -124,6 +130,8 @@ object FFTParams {
     FFTParams(
       numPoints = numPoints,
       protoIQ  = protoIQ,
+      protoIQOut = protoIQOut,
+      trimEnable = trimEnable,
       protoTwiddle = protoTwiddle,
       protoWin = protoWin,
       expandLogic = expandLogic,
@@ -150,7 +158,10 @@ object FFTParams {
   // Golden model
   def DSPReal(dataWidth     : Int = 16,
             binPoint        : Int = 14,
-            twiddleWidth    : Int = 16, 
+            dataWidthOut    : Int = 16,
+            binPointOut     : Int = 14,
+            trimEnable      : Boolean = false,
+            twiddleWidth    : Int = 16,
             numPoints       : Int = 2,
             fftType         : String = "sdf",
             decimType       : DecimType = DIFDecimType,
@@ -161,7 +172,7 @@ object FFTParams {
             runTimeR22      : Option[Boolean] = Some(false),
             expandLogic     : Array[Int] = Array.fill(log2Up(2))(0),
             runTime         : Boolean = false,
-            trimType        : TrimType = Convergent, 
+            trimType        : TrimType = Convergent,
             numAddPipes     : Int = 0,
             numMulPipes     : Int = 0,
             fftDir          : Boolean = true,
@@ -172,6 +183,7 @@ object FFTParams {
             windowFunc      : WindowFunctionType = WindowFunctionTypes.None()
 ): FFTParams[DspReal] = {
     val protoIQ      = DspComplex(new DspReal, new DspReal)
+    val protoIQOut   = DspComplex(new DspReal, new DspReal)
     // to allow for 1, -1, j, and -j to be expressed.
     val protoTwiddle = DspComplex(new DspReal, new DspReal)
     val protoWin = new DspReal
@@ -181,6 +193,8 @@ object FFTParams {
     FFTParams(
       numPoints = numPoints,
       protoIQ  = protoIQ,
+      protoIQOut = protoIQOut,
+      trimEnable = trimEnable,
       protoTwiddle = protoTwiddle,
       protoWin = protoWin,
       expandLogic = expandLogic,

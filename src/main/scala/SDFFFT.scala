@@ -5,10 +5,11 @@ package fft
 import chisel3._
 import chisel3.experimental._
 import chisel3.util._
+
 import dsptools._
 import dsptools.numbers._
-import scala.math.pow
 
+import scala.math.pow
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 
@@ -17,8 +18,8 @@ import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
   */
 class FFTIO [T <: Data : Ring](params: FFTParams[T]) extends Bundle {
   val in = Flipped(Decoupled(params.protoIQ))
-  val out = Decoupled(params.protoIQstages(log2Up(params.numPoints)-1))
-  
+    val out = if (params.trimEnable) Decoupled(params.protoIQOut) else Decoupled(params.protoIQstages(log2Up(params.numPoints)-1))
+
   val lastOut = Output(Bool())
   val lastIn = Input(Bool())
   // control registers

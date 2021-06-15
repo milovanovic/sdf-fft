@@ -38,8 +38,10 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
   
   val cumulativeDelayWire = Wire(UInt(cumulativeDelaysWires.last.getWidth.W))
   val enableVector = Wire(Vec(numStages, Bool()))
-  val outputWires = Wire(Vec(numStages, io.out.bits.cloneType))
-  
+
+  //val outputWires = Wire(Vec(numStages, io.out.bits.cloneType))
+  val outputWires = if (params.trimEnable) Wire(Vec(numStages, params.protoIQstages.last.cloneType)) else Wire(Vec(numStages, io.out.bits.cloneType))
+
   val regNumStages = RegInit(numStages.U((logn).W))
   val scaleBflyReg = RegInit(VecInit(Seq.fill(numStages)(false.B)))
   val overflowReg = RegInit(VecInit(Seq.fill(numStages)(false.B)))
@@ -350,7 +352,7 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
      outputWires(index)
     }
   }
-  
+
   val output = if (params.decimType == DIFDecimType) outputWires.last else outputWires(regNumStages-1.U)
   val latency = (params.numAddPipes + complexMulLatency) * log2Up(params.numPoints)
   val outValid = ShiftRegisterWithReset(validOutBeforePipes, outputLatency, resetData = false.B, reset = state_next === sIdle, en = true.B)
@@ -362,22 +364,54 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
   val scalar = if (params.expandLogic.sum == 0 && !params.keepMSBorLSBReg) ConvertableTo[T].fromDouble(1.0) else ConvertableTo[T].fromDouble(1.0 / params.numPoints.toDouble)
   io.in.ready := ShiftRegister((~initialOutDone), outputLatency, resetData = false.B, en = true.B) || (io.out.ready && (state =/= sFlush))
   
+  val dataWidthIn = fft_in_bits.real.getWidth
+  val dataWidthOut= fft_out_bits.real.getWidth
+  val div2Num = numStages - (dataWidthOut - dataWidthIn)
+
   if (latency == 0) {
     when (fftOrifft === true.B) {
-      fft_out_bits := output
+      //fft_out_bits := output
+      if (params.trimEnable && div2Num > 0) {
+        fft_out_bits.real := DspContext.alter(DspContext.current.copy(
+                      trimType = Convergent, binaryPointGrowth = 0)) { output.real.div2(div2Num) }
+        fft_out_bits.imag := DspContext.alter(DspContext.current.copy(
+                      trimType = Convergent, binaryPointGrowth = 0)) { output.imag.div2(div2Num) }
+      }
+      else {
+        fft_out_bits := output
+      }
     }
     .otherwise {
-      fft_out_bits.real := output.imag * scalar
-      fft_out_bits.imag := output.real * scalar
+      // not tested
+      if (params.trimEnable && div2Num > 0) {
+        fft_out_bits.real := DspContext.alter(DspContext.current.copy(
+                      trimType = Convergent, binaryPointGrowth = 0)) { output.real.div2(div2Num) } * scalar
+        fft_out_bits.imag := DspContext.alter(DspContext.current.copy(
+                      trimType = Convergent, binaryPointGrowth = 0)) { output.imag.div2(div2Num) } * scalar
+      }
+      else {
+        fft_out_bits.real := output.imag * scalar
+        fft_out_bits.imag := output.real * scalar
+      }
     }
     io.out.bits := fft_out_bits
     io.out.valid := outValid 
   }
   else {
     when (fftOrifft === true.B) {
-      fft_out_bits := outQueue.io.deq.bits
+      if (params.trimEnable && div2Num > 0) {
+        // here apply convergent rounding
+        fft_out_bits.real := DspContext.alter(DspContext.current.copy(
+                      trimType = Convergent, binaryPointGrowth = 0)) { outQueue.io.deq.bits.real.div2(div2Num) }
+        fft_out_bits.imag := DspContext.alter(DspContext.current.copy(
+                      trimType = Convergent, binaryPointGrowth = 0)) { outQueue.io.deq.bits.imag.div2(div2Num) }
+      }
+      else {
+        fft_out_bits := outQueue.io.deq.bits
+      }
     }
     .otherwise {
+      // not tested
       fft_out_bits.real := outQueue.io.deq.bits.imag * scalar
       fft_out_bits.imag := outQueue.io.deq.bits.real * scalar
     }

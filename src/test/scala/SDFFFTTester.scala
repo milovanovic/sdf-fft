@@ -24,18 +24,28 @@ import scala.io.Source
 trait SDFFFTTester[T <: chisel3.Data] extends HasTesterUtil[SDFFFT[T]] with HasSignalUtils { this: PeekPokeTester[SDFFFT[T]] =>
   def c: SDFFFT[T] //abstract need to be defined in classes which extends this trait (val)
 
-  def simpleTestFFT(tol: Int = 6, testSignal: Seq[Complex], params: FFTParams[T]): (Seq[Complex],Seq[Complex]) = {  
-    
+  def simpleTestFFT(tol: Int = 6, testSignal: Seq[Complex], params: FFTParams[T]): (Seq[Complex],Seq[Complex]) = {
+
     val cyclesWait = 5 * params.numPoints
     val fftSize = params.numPoints
     val numStages = log2Up(fftSize)
     val inp = if (params.decimType == DITDecimType) bitrevorder_data(testSignal) else testSignal
     val out = if (params.decimType == DITDecimType) fourierTr(DenseVector(testSignal.toArray)).toScalaVector else bitrevorder_data(fourierTr(DenseVector(inp.toArray)).toScalaVector)
-    
-    val scalingFactor = pow(2, params.expandLogic.filter(_ == 0).size).toInt
+    //out.map(c => println(c.toString))
+
+    // used only when trimEnable signal is active
+    val dataWidthIn = params.protoIQ.real.getWidth
+    val dataWidthOut= params.protoIQOut.real.getWidth
+    val div2Num = numStages - (dataWidthOut - dataWidthIn)
+
+    val trimEnableDiv = if (div2Num > 0) pow(2, div2Num) else 1
+    val scalingFactor = if (params.trimEnable) trimEnableDiv else pow(2, params.expandLogic.filter(_ == 0).size).toInt
+    // println("Scaling factor is:")
+    // println(scalingFactor.toString)
+
     val input = inp.iterator
     var output = Seq[Complex]()
-    
+
     poke(c.io.in.valid, 0)
     poke(c.io.out.ready, 0)
     step(2)
@@ -60,14 +70,18 @@ trait SDFFFTTester[T <: chisel3.Data] extends HasTesterUtil[SDFFFT[T]] with HasS
     reset(2)
     val bitrevorderOutput = if (params.decimType == DIFDecimType) bitrevorder_data(output.toVector) else output
     val scalafft = fourierTr(DenseVector(testSignal.toArray)).toScalaVector
-    
+
     /*println("Expected result:")
     out.map(c => println((c/scalingFactor).toString))
-    
+
     println("Result:")
     output.map(c => println((c/scalingFactor).toString))*/
-    
-    (bitrevorderOutput.map(c=>c*scalingFactor), scalafft)
+
+//     println("Bitrevorder data is:")
+//     bitrevorderOutput.map(c => println((c*scalingFactor).toString))
+//     println("Scala fft:")
+//     scalafft.map(c => println(c.toString))
+    (bitrevorderOutput.map(c => c*scalingFactor), scalafft)
   }
   
   /**
