@@ -159,5 +159,7 @@ Much more useful information about this work can be found inside ["A Highly Para
 
 [comment]: <> (dev branch - branch for further improvements and testing, e.g. more tests with AXI4 master and stream model)
 
+[comment]: <> (TODO: Exclude files with windowing. New block "streaming windowing function" does that)
+
 <!--- In addition to current plots which give SQNR vs Number of Stages for different rounding types after the adder, add analysis for twiddle factor multiplication rounding/truncation. Also analyze the SQNR for a realistic case of 12-bit digital I and Q input (from an ADC) up to 16-bit after, say, 10 butterfly stages (for 1024 points FFT) with options of growing up to 22 bits and then truncate to 16 or grow to 16 and then keep them constant. 16 bits is to fit the 32-bit AXI4-Stream. Compare SQNR against resource utilization. This is for SIPS 2022.)
 -->
