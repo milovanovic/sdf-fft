@@ -423,7 +423,8 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
     io.overflow.get := overflowReg
   }
   io.lastOut := lastOut
-  io.busy := state === sFlush
+  //io.busy := state === sFlush
+  io.busy := state =/= sIdle
 }
 
 class SDFStageRadix22IO[T <: Data : Ring](params: FFTParams[T]) extends Bundle {

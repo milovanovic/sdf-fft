@@ -482,7 +482,8 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
     io.overflow.get := overflowReg
   }
   io.lastOut := lastOut
-  io.busy := state === sFlush
+  //io.busy := state === sFlush
+  io.busy := state =/= sIdle
 }
 
 object SDFRadix22AppRunTime extends App

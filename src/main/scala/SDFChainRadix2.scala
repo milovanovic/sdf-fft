@@ -278,7 +278,8 @@ class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
   }
   
   io.lastOut := lastOut
-  io.busy := state === sFlush
+  //io.busy := state === sFlush
+  io.busy := state =/= sIdle
 }
 
 class SDFStageRadix2IO[T <: Data : Ring](params: FFTParams[T]) extends Bundle {
