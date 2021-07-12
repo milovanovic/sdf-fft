@@ -95,10 +95,14 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   val subSizesWire = subSizes.map(e => e.U)
   val bools = subSizesWire.map(e => e === io.size.getOrElse(size.U)) // create conditions
   val cases = bools.zip(1 to log2Size).map { case (bool, numBits) =>
-    bool -> { if (params.bitReverseDir) Reverse(cntRead._1(numBits-1, 0)) else Reverse(cntWritten._1(numBits-1, 0)) }
+    //bool -> { if (params.bitReverseDir) Reverse(cntRead._1(numBits-1, 0)) else Reverse(cntWritten._1(numBits-1, 0)) }
+    bool -> Reverse(cntWritten._1(numBits-1, 0))
   }
-  
-  if (params.bitReverseDir)
+
+  readAddress := cntRead._1
+  writeAddress := MuxCase(0.U(log2Size.W), cases)
+
+  /*if (params.bitReverseDir)
     readAddress := MuxCase(0.U(log2Size.W), cases) 
   else 
     readAddress := cntRead._1
@@ -106,7 +110,7 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   if (params.bitReverseDir) 
     writeAddress := cntWritten._1
   else 
-    writeAddress := MuxCase(0.U(log2Size.W), cases)
+    writeAddress := MuxCase(0.U(log2Size.W), cases)*/
   
   when (io.in.fire() && io.lastIn) {
    last := true.B
@@ -220,8 +224,9 @@ object BitReversePingPongApp extends App
   val params = BitReversePingPongParams.fixed(
     dataWidth = 24,
     binPoint = 9,
-    pingPongSize = 16,
-    adjustableSize = false
+    pingPongSize = 1024,
+    bitReverseDir = true,
+    adjustableSize = true,
   )
   chisel3.Driver.execute(args, () => new BitReversePingPong(params))
 }
