@@ -122,7 +122,13 @@ abstract class FFTBlock [T <: Data : Real: BinaryRepresentation, D, U, E, O, B <
     
     // Connect inputs
     fft.io.in.valid    := in.valid
-    fft.io.in.bits     := in.bits.data.asTypeOf(params.protoIQ)
+    require(in.bits.data.getWidth >= fft.io.in.bits.imag.getWidth + fft.io.in.bits.real.getWidth, "Data width is not appropriately set")
+
+    // when AXI4 stream data width is not equal to fft input data width be careful with assignment
+    // custom, because it is assumed that preproc block precedes and pack data on this way
+    fft.io.in.bits.imag  := in.bits.data(in.bits.data.getWidth/2 - 1, 0).asTypeOf(params.protoIQ.imag)
+    fft.io.in.bits.real  := in.bits.data(in.bits.data.getWidth-1, in.bits.data.getWidth/2).asTypeOf(params.protoIQ.real)
+    //fft.io.in.bits     := in.bits.data.asTypeOf(params.protoIQ)
     in.ready           := fft.io.in.ready
     fft.io.lastIn      := in.bits.last
     
