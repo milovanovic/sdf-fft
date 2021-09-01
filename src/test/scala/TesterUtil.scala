@@ -38,19 +38,36 @@ trait HasTesterUtil[T <: Module] extends DspTester[T] {
 
 trait HasSignalUtils {
 
+//   /**
+//    * Calculate signal to quantization noise ratio of the original scala fft function and chisel fft
+//    */
+//   def calc_sqnr(chiselFFT: Seq[Complex], scalaFFT: Seq[Complex]): Double = {
+//     import breeze.signal._
+//     import breeze.linalg._
+//     import scala.math._
+//
+//     val signal  = scalaFFT.map(c => sqrt(pow(c.real,2) + pow(c.imag,2)))
+//     val noise = chiselFFT.zip(scalaFFT).map { case (cFFT, sFFT) => sqrt(pow((cFFT - sFFT).real,2) + pow((cFFT - sFFT).imag,2)) }
+//     val sumSignal = signal.foldLeft(0.0)(_+_) //divide by length not necessary
+//     val noiseSum = noise.foldLeft(0.0)(_+_) //divide by length not necessary
+//     20*math.log10(sumSignal/noiseSum)
+//   }
+
   /**
-   * Calculate signal to quantization noise ratio of the original scala fft function and chisel fft
-   */
+  * Calculate signal to quantization noise ratio of the original scala fft function and chisel fft
+  */
   def calc_sqnr(chiselFFT: Seq[Complex], scalaFFT: Seq[Complex]): Double = {
     import breeze.signal._
     import breeze.linalg._
     import scala.math._
-  
-    val signal  = scalaFFT.map(c => sqrt(pow(c.real,2) + pow(c.imag,2)))
-    val noise = chiselFFT.zip(scalaFFT).map { case (cFFT, sFFT) => sqrt(pow((cFFT - sFFT).real,2) + pow((cFFT - sFFT).imag,2)) }
+
+    val scalaMagnitude = scalaFFT.map(c => sqrt(pow(c.real,2) + pow(c.imag,2)))
+    val chiselMagnitude = chiselFFT.map(c => sqrt(pow(c.real,2) + pow(c.imag,2)))
+    val noise = chiselMagnitude.zip(scalaMagnitude).map { case (cFFT, sFFT) => (pow(cFFT - sFFT,2)) }
+    val signal = scalaMagnitude.map(c => pow(c, 2))
     val sumSignal = signal.foldLeft(0.0)(_+_) //divide by length not necessary
     val noiseSum = noise.foldLeft(0.0)(_+_) //divide by length not necessary
-    20*math.log10(sumSignal/noiseSum)
+    10*math.log10(sumSignal/noiseSum)
   }
   
   /**
