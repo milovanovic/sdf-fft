@@ -299,11 +299,11 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
 
           val mulres = if (params.decimType == DIFDecimType) 
           DspContext.alter(DspContext.current.copy(
-            trimType = params.trimType,//Floor,
+            trimType = NoTrim,// params.trimType,//Floor,
             overflowType = Grow,
             complexUse4Muls = params.use4Muls)){ stg_io.out context_* twiddles(index) } else
           DspContext.alter(DspContext.current.copy(
-            trimType = params.trimType,
+            trimType = NoTrim, //params.trimType,
             overflowType = Grow,
             complexUse4Muls = params.use4Muls)){ stg_in context_* twiddles(index) }
 
