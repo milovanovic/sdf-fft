@@ -134,8 +134,9 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           }
           fft.io.lastIn := io.lastIn
           bitReversal.io.in <> fft.io.out
-          bitReversal.io.lastIn <> fft.io.lastOut
-          io.lastOut <> bitReversal.io.lastOut 
+          bitReversal.io.lastIn := fft.io.lastOut
+          io.lastOut := bitReversal.io.lastOut
+          dontTouch(io.lastOut)
         }
         else {
         // DIT
@@ -171,8 +172,8 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
             io.out.valid := fft.io.out.valid
             fft.io.out.ready := io.out.ready
           }
-          fft.io.lastIn <> bitReversal.io.lastOut
-          io.lastOut <> fft.io.lastOut
+          fft.io.lastIn := bitReversal.io.lastOut
+          io.lastOut := fft.io.lastOut
         }
       }
       else {
@@ -248,8 +249,8 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           }
           fft.io.lastIn := io.lastIn
           bitReversal.io.in <> fft.io.out
-          bitReversal.io.lastIn <> fft.io.lastOut
-          io.lastOut <> bitReversal.io.lastOut 
+          bitReversal.io.lastIn := fft.io.lastOut
+          io.lastOut := bitReversal.io.lastOut
         }
         else {
         // DIT
@@ -286,8 +287,8 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
             io.out.valid := fft.io.out.valid
             fft.io.out.ready := io.out.ready
           }
-          fft.io.lastIn <> bitReversal.io.lastOut
-          io.lastOut <> fft.io.lastOut
+          fft.io.lastIn := bitReversal.io.lastOut
+          io.lastOut := fft.io.lastOut
         }
       }
       else {
