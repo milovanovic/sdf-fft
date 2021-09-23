@@ -99,7 +99,9 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
     bool -> Reverse(cntWritten._1(numBits-1, 0))
   }
 
-  readAddress := cntRead._1
+  readAddress := cntRead._1 //Mux(io.out.ready, cntRead._1, RegEnable(cntRead._1 , false.B, io.out.ready))
+  dontTouch(readAddress)
+  readAddress.suggestName("read_address")
   writeAddress := MuxCase(0.U(log2Size.W), cases)
 
   /*if (params.bitReverseDir)
@@ -113,7 +115,7 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
     writeAddress := MuxCase(0.U(log2Size.W), cases)*/
   
   when (io.in.fire() && io.lastIn) {
-   last := true.B
+    last := true.B
   }
   val lastRead = cntReadMax  && io.out.ready
   val lastWrite = cntWriteMax && io.in.valid
@@ -192,15 +194,15 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   // naming ping/pong!
   val memPingData = memPing(readAddress)
   val memPongData = memPong(readAddress)
-  
+
 //   io.out.bits  := Mux(RegNext(readPing), memPingData, memPongData)
 //   io.in.ready  := state =/= StateFSM.sReadOnly
 //   io.out.valid := RegNext(state === StateFSM.sReadOnly || state === StateFSM.sReadWrite)
 //   io.lastOut   := RegNext(last && state_next === StateFSM.sIdle)
   
-  val outQueue =  Module(new Queue(chiselTypeOf(io.out.bits), entries = 1, pipe = true, flow = true))
+  val outQueue =  Module(new Queue(chiselTypeOf(io.out.bits), entries = 1, pipe = false, flow = true)) // prev flow on true and pipe on true
   outQueue.io.enq.bits := Mux(RegNext(readPing), memPingData, memPongData)
-  // add reset
+
   outQueue.io.enq.valid := RegNext(state === StateFSM.sReadOnly || state === StateFSM.sReadWrite, false.B)
   outQueue.io.deq.ready := io.out.ready
   
@@ -215,7 +217,7 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   
   // not logical but it works!
   io.lastOut   := state === StateFSM.sIdle && io.out.fire() //outQueueLast.io.deq.bits
-  
+  dontTouch(io.lastOut)
 }
 
 object BitReversePingPongApp extends App
