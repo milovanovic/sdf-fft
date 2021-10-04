@@ -380,12 +380,20 @@ class SDFStageRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
   val shift_out = Wire(shift_in.cloneType)
   
   if (params.decimType == DIFDecimType) {
-    shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, name = this.name + s"_mem")
-    //shift_out := ShiftRegister(shift_in, delay, en = io.en)
+    if (params.minSRAMdepth < delay) {
+      shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, name = this.name + s"_mem")
+    }
+    else {
+      shift_out := ShiftRegister(shift_in, delay, en = io.en)
+    }
   }
   else {
-    shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
-    //shift_out := ShiftRegister(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
+    if (params.minSRAMdepth < delay) {
+      shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
+    }
+    else {
+      shift_out := ShiftRegister(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
+    }
   }
   //val shift_out = if (params.decimType == DIFDecimType) ShiftRegisterMem(shift_in, delay, en = io.en) else ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
   
