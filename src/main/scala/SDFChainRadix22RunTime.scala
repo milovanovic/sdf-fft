@@ -202,7 +202,7 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
     lastWait := true.B
   }
   
-  when (state_next === sIdle && pktEnd) {
+  when ((state_next === sIdle && pktEnd) || pktEnd) {
     cntValidOut := 0.U
   }
   .elsewhen (io.out.fire()) {

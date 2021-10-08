@@ -121,8 +121,8 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
   .elsewhen (fireLast && (initialInDone && initialInDonePrev)) {
     lastWait := true.B
   }
-  
-  when (state_next === sIdle && pktEnd) {
+
+  when ((state_next === sIdle && pktEnd) || pktEnd) {
     cntValidOut := 0.U
   }
   .elsewhen (io.out.fire()) {
