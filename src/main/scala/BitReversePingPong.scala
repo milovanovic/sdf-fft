@@ -146,17 +146,22 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   
   when (state === StateFSM.sIdle) {
     when (io.in.fire()) {
-      state_next :=  StateFSM.sWriteOnly
+      state_next := StateFSM.sWriteOnly
     }
   }
   .elsewhen (state === StateFSM.sWriteOnly) {
     when (lastWrite) {
-      when (io.lastIn) {
+      when (io.lastIn) { // this one should be checked
         state_next := StateFSM.sReadOnly
       }
-      .otherwise {
+      //.otherwise {
+      .elsewhen (io.out.ready) {
         state_next := StateFSM.sReadWrite
       }
+      .otherwise {
+        state_next := StateFSM.sWriteOnly
+      }
+      //}
     }
   }
   .elsewhen (state === StateFSM.sReadWrite) {
@@ -200,10 +205,9 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
 //   io.out.valid := RegNext(state === StateFSM.sReadOnly || state === StateFSM.sReadWrite)
 //   io.lastOut   := RegNext(last && state_next === StateFSM.sIdle)
   
-  val outQueue =  Module(new Queue(chiselTypeOf(io.out.bits), entries = 1, pipe = false, flow = true)) // prev flow on true and pipe on true
-  outQueue.io.enq.bits := Mux(RegNext(readPing), memPingData, memPongData)
-
-  outQueue.io.enq.valid := RegNext(state === StateFSM.sReadOnly || state === StateFSM.sReadWrite, false.B)
+  val outQueue = Module(new Queue(chiselTypeOf(io.out.bits), entries = 1, pipe = false, flow = true)) // prev flow on true and pipe on true
+  outQueue.io.enq.bits := Mux(RegNext(readPing), memPingData, memPongData)//Mux(RegNext(readPing), memPingData, memPongData)
+  outQueue.io.enq.valid := RegNext((state === StateFSM.sReadOnly || state === StateFSM.sReadWrite) && io.out.ready, false.B)
   outQueue.io.deq.ready := io.out.ready
   
   io.out.bits  := outQueue.io.deq.bits
@@ -212,7 +216,7 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   
   val outQueueLast = Module(new Queue(chiselTypeOf(io.lastIn), entries = 1, pipe = true, flow = true))
   outQueueLast.io.enq.bits := RegNext(last && state_next === StateFSM.sIdle, false.B)
-  outQueueLast.io.enq.valid := RegNext(state === StateFSM.sReadOnly || state === StateFSM.sReadWrite)
+  outQueueLast.io.enq.valid := RegNext(state === StateFSM.sReadOnly || state === StateFSM.sReadWrite && io.out.ready, false.B)
   outQueueLast.io.deq.ready := io.out.ready
   
   // not logical but it works!
