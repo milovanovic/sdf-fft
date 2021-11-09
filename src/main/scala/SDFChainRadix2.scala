@@ -44,7 +44,7 @@ class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
 
   val fftOrifft = RegInit(true.B)
   
-  val numPoints = Wire(UInt((log2Up(params.numPoints)).W))
+  val numPoints = Wire(UInt((log2Up(params.numPoints + 1)).W)) // it can be log2Up(params.numPoints) as well
   val activeStages = Wire(Vec(numStages, Bool()))
   val cntr_wires = Wire(Vec(numStages, UInt(log2Up(params.numPoints).W)))
   
@@ -65,7 +65,10 @@ class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
   
   state_next := state
   val fireLast = io.lastIn && io.in.fire()
- 
+
+  val lastStageCnt = cntr_wires(regNumStages-1.U)
+  val lastStageEn = enableVector(regNumStages-1.U)
+
   switch (state) {
     is (sIdle) {
       // init registers here
@@ -105,7 +108,9 @@ class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
   when (state_next === sIdle) {
     lastWait := false.B
   }
-  .elsewhen (fireLast && (initialInDone && initialInDonePrev)) {
+  // this cntValidOut is not equal to max num points is added because if it max then that means that previous data set is finished
+  // be carefull with those changes
+  .elsewhen (fireLast && (initialInDone && initialInDonePrev) && lastStageCnt =/= (numPoints - 1.U)) { //&& cntValidOut =/= (numPoints  - 1.U)) {
     lastWait := true.B
   }
 
@@ -179,8 +184,7 @@ class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
     }
   }
   
-  val lastStageCnt = cntr_wires(regNumStages-1.U)
-  val lastStageEn = enableVector(regNumStages-1.U)
+
   
   when (lastStageCnt === (numPoints - 2.U) && lastStageEn) {
     initialOutDone := true.B
