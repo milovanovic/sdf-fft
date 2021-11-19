@@ -108,7 +108,6 @@ class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
   when (state_next === sIdle) {
     lastWait := false.B
   }
-  // this cntValidOut is not equal to max num points is added because if it max then that means that previous data set is finished
   // be carefull with those changes
   .elsewhen (fireLast && (initialInDone && initialInDonePrev) && lastStageCnt =/= (numPoints - 1.U)) { //&& cntValidOut =/= (numPoints  - 1.U)) {
     lastWait := true.B
