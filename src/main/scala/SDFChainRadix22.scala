@@ -77,6 +77,10 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
   // simple state machine
   state_next := state
   val fireLast = io.lastIn && io.in.fire()
+
+  val lastStageCnt = cntr_wires(regNumStages-1.U)
+  val lastStageEn = enableVector(regNumStages-1.U)
+
   switch (state) {
     is (sIdle) {
       // register initialization
@@ -97,7 +101,6 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
     }
   }
   state := state_next
-  
   // logic for last out signal generation
   
   val cntValidOut = RegInit(0.U(log2Up(params.numPoints).W))
@@ -106,7 +109,8 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
   val initialInDone = RegInit(false.B)
   val initialInDonePrev = RegInit(false.B)
   val pktEnd = (cntValidOut === (numPoints - 1.U)) && io.out.fire()
-  
+
+
   when (state_next === sIdle) {
     initialInDone := false.B
   }
@@ -118,7 +122,8 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
   when (state_next === sIdle) {
     lastWait := false.B
   }
-  .elsewhen (fireLast && (initialInDone && initialInDonePrev)) {
+  // lastStageCnt =/= (numPoints - 1.U) is added
+  .elsewhen (fireLast && (initialInDone && initialInDonePrev) && lastStageCnt =/= (numPoints - 1.U)) {
     lastWait := true.B
   }
 
@@ -184,8 +189,6 @@ class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTPa
       )
     }
   }
-  val lastStageCnt = cntr_wires(regNumStages-1.U)
-  val lastStageEn = enableVector(regNumStages-1.U)
   
   when (lastStageCnt === (numPoints - 2.U) && lastStageEn) {
     initialOutDone := true.B
