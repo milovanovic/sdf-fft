@@ -179,6 +179,9 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
   }
   state := state_next
   
+  val lastStageCnt = cntr_wires(regNumStages-1.U)
+  val lastStageEn = enableVector(regNumStages-1.U)
+
   // logic for last out signal generation
   val cntValidOut = RegInit(0.U(log2Up(params.numPoints).W))
   val lastWait = RegInit(false.B)
@@ -198,7 +201,8 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
   when (state_next === sIdle) {
     lastWait := false.B
   }
-  .elsewhen (fireLast && (initialInDone && initialInDonePrev)) {
+  // added lastStageCnt =/= (numPoints - 1.U)
+  .elsewhen (fireLast && (initialInDone && initialInDonePrev) && lastStageCnt =/= (numPoints - 1.U)) {
     lastWait := true.B
   }
   
@@ -431,8 +435,8 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
         out
       }
   }
-  val lastStageCnt = cntr_wires(regNumStages-1.U) //make Mux in verilog code
-  val lastStageEn =  enableVector(regNumStages - 1)
+//  val lastStageCnt = cntr_wires(regNumStages-1.U) //generate Mux in verilog code
+//  val lastStageEn =  enableVector(regNumStages - 1)
   
  // Note: error for numPoints = 2 run vs compile time
   when (lastStageCnt === (numPoints - 2.U) && lastStageEn) {
