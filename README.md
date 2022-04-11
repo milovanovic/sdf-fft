@@ -1,4 +1,5 @@
 
+
 A Single-path Delay Feedback (SDF) FFT Chisel Generator
 =======================================================
 
@@ -43,7 +44,7 @@ Interface of the implemented SDF-FFT generator showing inout signals as well as 
 
 Decoupled interface is used where .bits is output IQ sample (in frequency or time domain depending on fft direction)
 * `out: Decoupled(DspComplex[T])` - output IQ sample (in frequency domain - direct fft or in time domain - inverse fft) wrapped with valid/ready signals
-* `lastOut: Bool` - indicates the last sample in the output stream 
+* `lastOut: Bool` - indicates the last sample in the output stream
 * `busy: Bool` - status register, active in the state `sFlush`
 * Optional status register: `overflowReg`
 
@@ -59,14 +60,14 @@ On the FSM diagram some signals are omitted for clarity but brief explanation of
 
 Explanation of some important control signals inside the design:
 
-* `enableInit`  is enable signal for first stage. It is active when `io.in.fire` is asserted, when flushing data is activated and output side is ready to accept new data (`io.out.ready` is activated). Condition for `io.out.ready` is there to be sure that data is not going to be dropped when flushing is in the process. Enable signal for the each stage is delayed version of the `enableInit` where depth of the delay line depends directly of the number of the pipeline registers inserted after each stage. 
+* `enableInit`  is enable signal for first stage. It is active when `io.in.fire` is asserted, when flushing data is activated and output side is ready to accept new data (`io.out.ready` is activated). Condition for `io.out.ready` is there to be sure that data is not going to be dropped when flushing is in the process. Enable signal for the each stage is delayed version of the `enableInit` where depth of the delay line depends directly of the number of the pipeline registers inserted after each stage.
 * `initialOutDone`in active state indicates that last stage will have first valid data on output after passing data through pipeline registers.
 
 Assumption is that `lastIn` is always asserted at the end of the fft window. Preceding block or preceding logic should take care of correct `lastIn` signal generation and potential addition of the zero padding feature.
 
-The SDF-FFT core is ready to accept new data as far as all delay buffers are filled or output side is ready to accept data. When flush is issued then core responds by deasserting ready signal until it's returned to `sIdle` state. 
+The SDF-FFT core is ready to accept new data as far as all delay buffers are filled or output side is ready to accept data. When flush is issued then core responds by deasserting ready signal until it's returned to `sIdle` state.
 
-Initial latency of the core depends directly on fft size, number of included pipeline register, multiplier structure as well as of the parameter `useBitReverse`.  It has the same value for radix 2 and radix 2<sup>2</sup> scheme and for both DIT and DIF butterfly types. 
+Initial latency of the core depends directly on fft size, number of included pipeline register, multiplier structure as well as of the parameter `useBitReverse`.  It has the same value for radix 2 and radix 2<sup>2</sup> scheme and for both DIT and DIF butterfly types.
 
 |        Parameters settings                             | Initial Latency
 |:-----------------------------------------------:|:-----------:|
@@ -105,7 +106,7 @@ The explanation of each parameter is given below:
 * `use4Muls` - use 3 or 4 multiplier structure for complex multiplication
 * `useBitReverse` - include `BitReversePingPong` module
 * `minSRAMdepth` - use SRAM for the delay line larger than `minSRAMdepth`
-*  `windowFunc`  - define window function - hamming, hanning, blackman, triangular, user specified or no window function 
+*  `windowFunc`  - define window function - hamming, hanning, blackman, triangular, user specified or no window function
 
 ## Prerequisites
 
@@ -136,7 +137,7 @@ Besides main source code, various tests for sdf generator are provided in this r
 * `SDFFFTRunTimeTester` - contains test function which tests run time configurable fft size. Common tester is used for radix 2, radix 2<sup>2</sup> and radix 2<sup>2</sup> module which provides full run time configurability.
 * `TesterUtils.scala` - contains useful helper functions for testers such as `getTone`, `getRandSignal`, `calc_sqnr,` plot functions etc.
 * `FFTWithWindowingBlockSpec` - tests fft block with windowing, simple test example with `AXI4StreamModel` and `AXI4MasterModel`
- 
+
 Some test examples described above are written for both `FixedPoint` and `DspReal` Chisel data type. The `DspReal` Chisel data type has been used to simulate golden model of the proposed generator.
 
 To run a specific test written in Scala simulation environment for instance `Radix22Spec`, user should execute the following command:
@@ -163,3 +164,20 @@ Much more useful information about this work can be found inside ["A Highly Para
 
 <!--- In addition to current plots which give SQNR vs Number of Stages for different rounding types after the adder, add analysis for twiddle factor multiplication rounding/truncation. Also analyze the SQNR for a realistic case of 12-bit digital I and Q input (from an ADC) up to 16-bit after, say, 10 butterfly stages (for 1024 points FFT) with options of growing up to 22 bits and then truncate to 16 or grow to 16 and then keep them constant. 16 bits is to fit the 32-bit AXI4-Stream. Compare SQNR against resource utilization. This is for SIPS 2022.)
 -->
+
+## Generate verilog
+
+To generate verilog code for all instances of interest, run `make gen_all_single_file`  (all modules are inside one verilog file) or `make gen_all_multiple_files` (each module is inside their own verilog file) in base directory. All verilog files are generated inside `generated-rtl` directory.
+
+* `generated-rtl/radix2` - sdf-fft with butterfly structure radix 2
+* `generated-rtl/radix22` - sdf-fft with butterfly structure radix 2^2
+
+Each sub-directory contains `fft_mem.conf` where sram blocks used in design are listed. Top level modul is always `SDFFT_[fft_size]_[word_size]`.
+Sub - directory name is always:
+
+`sdffft_size_[fft_size]_width_[word_size]_bitreverse_[useBitReverse]`
+
+When `useBitReverse` parameter is set to 1, additional  SRAM memories are used in design and it is expected that total area is increased.
+
+
+
