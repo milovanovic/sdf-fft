@@ -53,7 +53,9 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   val size = params.pingPongSize
   val memPing = SyncReadMem(size, params.proto)
   val memPong = SyncReadMem(size, params.proto)
-  
+  val totalDataWidth = params.proto.real.getWidth*2
+  memPing.suggestName("SRAM" + "_depth_" + size.toString + "_width_" + totalDataWidth.toString + s"_mem")
+
   object StateFSM extends ChiselEnum {
     val sIdle, sWriteOnly, sReadWrite, sReadOnly = Value
   }

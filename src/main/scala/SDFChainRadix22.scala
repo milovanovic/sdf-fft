@@ -452,7 +452,8 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   val io = IO(SDFStageRadix22IO(params))
   val inp = Wire(params.protoIQ.cloneType)
   val out = Wire(params.protoIQ.cloneType)
-  
+
+  val totalDataWidth = params.protoIQ.real.getWidth*2
   val complexMulLatency = if (params.use4Muls) {
     params.numAddPipes + params.numMulPipes
   } else {
@@ -470,7 +471,7 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   
   if (params.decimType == DIFDecimType) {
     if (params.minSRAMdepth < delay) {
-      shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, name = this.name + s"_mem")
+      shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem")
     }
     else {
       shift_out := ShiftRegister(shift_in, delay, en = io.en)
@@ -478,7 +479,8 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   }
   else {
     if (params.minSRAMdepth < delay) {
-      shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
+      //shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
+      shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem")
     }
     else {
       shift_out := ShiftRegister(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
