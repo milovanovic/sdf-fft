@@ -48,7 +48,8 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
   params.checkFftType()
   params.checkSDFRadix()
   
-  override def desiredName = "SDFFFT_" + params.numPoints.toString + "_" + params.protoIQ.real.getWidth.toString
+  val bitreverse_flag = if (params.useBitReverse) 1 else 0
+  override def desiredName = "SDFFFT" + "_size_" + params.numPoints.toString + "_width_" + params.protoIQ.real.getWidth.toString + "_radix_" + params.sdfRadix + "_bitreverse_" + bitreverse_flag.toString
   
   // generate rom for window coefficients
   val windowSeq = params.windowFunc match {
