@@ -4,6 +4,7 @@ generated-rtl/
 *.v
 *.conf
 *.json
+*.zip
 
 target/
 project/
