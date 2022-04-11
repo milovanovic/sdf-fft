@@ -336,34 +336,50 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
 
 object SDFFFTApp extends App
 {
+  implicit def int2bool(b: Int) = if (b == 1) true else false
+  if (args.length < 5) {
+    println("This application requires at least 5 arguments")
+  }
+  val buildDirName = args(0).toString
+  val wordSize = args(1).toInt
+  val fftSize = args(2).toInt
+  val isBitReverse = int2bool(args(3).toInt)
+  val radix = args(4).toString
+  val separateVerilog = int2bool(args(5).toInt)
+
   val params = FFTParams.fixed(
-    dataWidth = 16,
+    dataWidth = wordSize,
     binPoint = 0,
     twiddleWidth = 16,
-    numPoints = 1024,
+    numPoints = fftSize,
     decimType = DIFDecimType,
-    useBitReverse = true,
+    useBitReverse = isBitReverse,
     numAddPipes = 1,
     numMulPipes = 1,
+    sdfRadix = radix,
     runTime = true,
-    expandLogic = Array.fill(log2Up(1024))(0),
-    keepMSBorLSB = Array.fill(log2Up(1024))(true),
-    minSRAMdepth = 1024
+    expandLogic = Array.fill(log2Up(fftSize))(0),
+    keepMSBorLSB = Array.fill(log2Up(fftSize))(true),
+    minSRAMdepth = 8
   )
- 
- (new chisel3.stage.ChiselStage).execute(
-  Array("-X", "verilog", "--target-dir", "generated-rtl"),
-  Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
-  
-// // deprecated
-// chisel3.Driver.execute(Array("--target-dir", "generated-rtl", "--top-name", "SDFFFT"), ()=>new SDFFFT(params))
-
-// // uncomment this for applying repl-seq-mem annotation
-//   val arguments = Array(
-//     "-X", "verilog",
-//     "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
-//     "--log-level", "info"
-//   )
-//   // generate blackbox-es for memories
-//   (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+  print(radix)
+  if (separateVerilog == true) {
+    val arguments = Array(
+      "--target-dir", buildDirName,
+      "-e", "verilog",
+      "-X", "verilog",
+      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level", "info"
+    )
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+  }
+  else {
+    val arguments = Array(
+      "--target-dir", buildDirName,
+      "-X", "verilog",
+      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level", "info"
+    )
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+  }
 }
