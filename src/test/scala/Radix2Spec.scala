@@ -58,7 +58,7 @@ class Radix2Spec extends FlatSpec with Matchers {
   // use 4 real multipliers for complex multiplication
   for (i <- Seq(8, 32)) {
     for (decType <- Seq(DIFDecimType, DITDecimType)) {
-      it should f"compute radix 2 $decType FFT, size $i with no growing logic and 4 multiplier structure" ignore {
+      it should f"compute radix 2 $decType FFT, size $i with no growing logic and 4 multiplier structure" in {
         val testSignal = getRealTone(i, (1.0/i).toDouble)
         val paramsFixed = FFTParams.fixed(
           numPoints = i,
@@ -76,7 +76,7 @@ class Radix2Spec extends FlatSpec with Matchers {
   // use bit reversal stage
   for (i <- Seq(8, 32)) {
     for (decType <- Seq(DIFDecimType, DITDecimType)) {
-      it should f"compute radix 2 $decType FFT, size $i with no growing logic and included bit-reversal stage" ignore {
+      it should f"compute radix 2 $decType FFT, size $i with no growing logic and included bit-reversal stage" in {
         val testSignal = getRealTone(i, (1.0/i).toDouble)
         val paramsFixed = FFTParams.fixed(
           numPoints = i,
