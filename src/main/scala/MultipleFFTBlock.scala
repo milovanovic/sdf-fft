@@ -30,18 +30,18 @@ trait AXI4MultipleFFTsStandaloneBlock extends AXI4MultipleFFTsBlock[FixedPoint] 
     ioMem
   }}
 
-  val numIns = 2
+  val numIns = 16
 
   val ins: Seq[ModuleValue[AXI4StreamBundle]] = for (i <- 0 until numIns) yield {
-    implicit val valName = ValName(s"inIOs_$i")
+    implicit val valName = ValName(s"in_$i")
     val in = BundleBridgeSource[AXI4StreamBundle](() => AXI4StreamBundle(AXI4StreamBundleParameters(n = 4)))
     streamNode :=
-      BundleBridgeToAXI4Stream(AXI4StreamMasterPortParameters(AXI4StreamMasterParameters())) :=
+      BundleBridgeToAXI4Stream(AXI4StreamMasterPortParameters(AXI4StreamMasterParameters(n = 4))) :=
       in
     InModuleBody { in.makeIO() }
   }
-  val outIOs: Seq[ModuleValue[AXI4StreamBundle]] = for (o <- 0 until numIns) yield {
-    implicit val valName = ValName(s"outIOs_$o")
+  val outs: Seq[ModuleValue[AXI4StreamBundle]] = for (o <- 0 until numIns) yield {
+    implicit val valName = ValName(s"out_$o")
     val out = BundleBridgeSink[AXI4StreamBundle]()
     out :=
       AXI4StreamToBundleBridge(AXI4StreamSlavePortParameters(AXI4StreamSlaveParameters())) :=
@@ -247,29 +247,54 @@ object MultipleFFTsDspBlockAXI4 extends App
   chisel3.Driver.execute(args, ()=> fftModule.module)
 }
 
-object MultipleFFTsDspBlockAXI4WithConfig extends App
+// For the pynq!
+object MultipleFFTsDspBlockAXI4ForPynq extends App
 {
   val paramsMultipleFFTs = FFTParams.fixed(
-    dataWidth = 16,
-    twiddleWidth = 16,
-    numPoints = 1024,
-    useBitReverse = false,
-    runTime = true,
-    numAddPipes = 1,
-    numMulPipes = 1,
-    expandLogic = Array.fill(log2Up(1024))(0),
-    keepMSBorLSB = Array.fill(log2Up(1024))(true),
-    overflowReg = true,
-    keepMSBorLSBReg = true,
-    binPoint = 0,
-    minSRAMdepth = 1024
+     dataWidth = 12,
+      twiddleWidth = 16,
+      numPoints = 512,
+      useBitReverse  = true,
+      runTime = true,
+      numAddPipes = 1,
+      numMulPipes = 1,
+      use4Muls = true,
+      expandLogic = Array.fill(log2Up(512))(1).zipWithIndex.map { case (e,ind) => if (ind < 4) 1 else 0 }, // expand first four stages, other do not grow
+      sdfRadix = "2",
+      trimType = Convergent,
+      keepMSBorLSB = Array.fill(log2Up(512))(true),
+      minSRAMdepth = 128, // memories larger than 64 should be mapped on block ram
+      binPoint = 10
   )
-  val baseAddress = 0x500 // just to check if verilog code is succesfully generated or not
+  val baseAddress = 0x400000000L // just to check if verilog code is succesfully generated or not
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new AXI4MultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = true) with AXI4MultipleFFTsStandaloneBlock {
-     val config_in = BundleBridgeSource(() => new AXI4StreamBundle(AXI4StreamBundleParameters(n = 1)))
-     configNode.get := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = 1)) := config_in
-     val config = InModuleBody { config_in.makeIO() }
-  })
+  val fftModule = LazyModule(new AXI4MultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress, 0xFF), _beatBytes = 4, configInterface = false) with AXI4MultipleFFTsStandaloneBlock)
   chisel3.Driver.execute(args, ()=> fftModule.module)
 }
+
+// object MultipleFFTsDspBlockAXI4WithConfig extends App
+// {
+//   val paramsMultipleFFTs = FFTParams.fixed(
+//     dataWidth = 16,
+//     twiddleWidth = 16,
+//     numPoints = 1024,
+//     useBitReverse = false,
+//     runTime = true,
+//     numAddPipes = 1,
+//     numMulPipes = 1,
+//     expandLogic = Array.fill(log2Up(1024))(0),
+//     keepMSBorLSB = Array.fill(log2Up(1024))(true),
+//     overflowReg = true,
+//     keepMSBorLSBReg = true,
+//     binPoint = 0,
+//     minSRAMdepth = 1024
+//   )
+//   val baseAddress = 0x500 // just to check if verilog code is succesfully generated or not
+//   implicit val p: Parameters = Parameters.empty
+//   val fftModule = LazyModule(new AXI4MultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = true) with AXI4MultipleFFTsStandaloneBlock {
+//      val config_in = BundleBridgeSource(() => new AXI4StreamBundle(AXI4StreamBundleParameters(n = 1)))
+//      configNode.get := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = 1)) := config_in
+//      val config = InModuleBody { config_in.makeIO() }
+//   })
+//   chisel3.Driver.execute(args, ()=> fftModule.module)
+// }
