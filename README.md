@@ -152,17 +152,11 @@ Much more useful information about this work can be found inside ["A Highly Para
 
 [comment]: <> (TODO: Check whether radix 2^2 full run time configurability has a better performances and resource utilization than radix 2 with run time configurability
 )
-[comment]: <> (version-0.1 branch - contains version with incorrect generation of lastOut signal for some test cases but this version is tested a lot on FPGA)
-
-[comment]: <> (version-0.2 branch - fixes problems with lastOut generation, also take care of better timing performances in the case when run time configurability is turned on)
-
-[comment]: <> (master branch - include windowing as a parameter, that is the main difference in respect to version-0.2 branch)
-
-[comment]: <> (dev branch - branch for further improvements and testing, e.g. more tests with AXI4 master and stream model)
+[comment]: <> (dev branch - branch for further improvements and testing)
 
 [comment]: <> (TODO: Exclude files with windowing. New block "streaming windowing function" does that)
 
-<!--- In addition to current plots which give SQNR vs Number of Stages for different rounding types after the adder, add analysis for twiddle factor multiplication rounding/truncation. Also analyze the SQNR for a realistic case of 12-bit digital I and Q input (from an ADC) up to 16-bit after, say, 10 butterfly stages (for 1024 points FFT) with options of growing up to 22 bits and then truncate to 16 or grow to 16 and then keep them constant. 16 bits is to fit the 32-bit AXI4-Stream. Compare SQNR against resource utilization. This is for SIPS 2022.)
+<!--- In addition to current plots which give SQNR vs Number of Stages for different rounding types after the adder, add analysis for twiddle factor multiplication rounding/truncation. Also analyze the SQNR for a realistic case of 12-bit digital I and Q input (from an ADC) up to 16-bit after, say, 10 butterfly stages (for 1024 points FFT) with options of growing up to 22 bits and then truncate to 16 or grow to 16 and then keep them constant. 16 bits is to fit the 32-bit AXI4-Stream. Compare SQNR against resource utilization. This is for SIPS 2023.)
 -->
 
 ## Generate verilog
