@@ -11,6 +11,8 @@ import dsptools.numbers._
 
 import scala.math.pow
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+//import firrtl.transforms.{Flatten, FlattenAnnotation, NoDedupAnnotation}
+//import chisel3.util.experimental.{FlattenInstance, InlineInstance}
 
 
 /**
@@ -100,7 +102,6 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
   
   dontTouch(addrWin)
   addrWin.suggestName("addrWin")
-  
   params.sdfRadix match {
     case "2" => {
       val fft = Module(new SDFChainRadix2(params))
@@ -216,7 +217,7 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
       }
     }
     case "2^2" => {
-      val fft = if (params.runTimeR22.getOrElse(false) == true) Module(new SDFChainRadix22RunTime(params)) else Module(new SDFChainRadix22(params))
+      val fft = if (params.runTimeR22.getOrElse(false) == true) Module(new SDFChainRadix22RunTime(params)) else Module(new SDFChainRadix22(params))//Module(new SDFChainRadix22RunTime(params)  with FlattenInstance) else Module(new SDFChainRadix22(params) with FlattenInstance)
       if (params.useBitReverse) {
         if (params.decimType == DIFDecimType) {
           val paramsBR = BitReversePingPongParams(
@@ -335,11 +336,59 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
   }
 }
 
+object SDFFFTSimpleApp extends App
+{
+  val buildDirName = "verilog"
+  val wordSize = 16
+  val fftSize = 256
+  val isBitReverse = true
+  val radix = "2"
+  val separateVerilog = true
+
+  val params = FFTParams.fixed(
+    dataWidth = wordSize,
+    binPoint = 0,
+    twiddleWidth = 16,
+    numPoints = fftSize,
+    decimType = DIFDecimType,
+    useBitReverse = isBitReverse,
+    numAddPipes = 1,
+    numMulPipes = 1,
+    sdfRadix = radix,
+    runTime = true,
+    expandLogic = Array.fill(log2Up(fftSize))(0),
+    keepMSBorLSB = Array.fill(log2Up(fftSize))(true),
+    minSRAMdepth = 8
+  )
+  print(radix)
+  if (separateVerilog == true) {
+    val arguments = Array(
+      "--target-dir", buildDirName,
+      "-e", "verilog",
+      "-X", "verilog",
+      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level", "info"
+    )
+    //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+  }
+  else {
+    val arguments = Array(
+      "--target-dir", buildDirName,
+      "-X", "verilog",
+      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level", "info"
+    )
+    //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+  }
+}
+
 object SDFFFTApp extends App
 {
   implicit def int2bool(b: Int) = if (b == 1) true else false
   if (args.length < 5) {
-    println("This application requires at least 5 arguments")
+    println("This application requires at least 5 arguments, check Makefile")
   }
   val buildDirName = args(0).toString
   val wordSize = args(1).toInt
@@ -372,6 +421,7 @@ object SDFFFTApp extends App
       "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
       "--log-level", "info"
     )
+    //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
     (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
   }
   else {
@@ -381,6 +431,7 @@ object SDFFFTApp extends App
       "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
       "--log-level", "info"
     )
+    //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
     (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
   }
 }
