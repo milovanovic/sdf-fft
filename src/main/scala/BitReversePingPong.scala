@@ -156,12 +156,13 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
       when (io.lastIn) { // this one should be checked
         state_next := StateFSM.sReadOnly
       }
-      //.otherwise {
-      .elsewhen (io.out.ready) {
+      .otherwise {
+      /*.elsewhen (io.out.ready) {
         state_next := StateFSM.sReadWrite
       }
-      .otherwise {
-        state_next := StateFSM.sWriteOnly
+      .otherwise {*/
+        //state_next := StateFSM.sWriteOnly
+        state_next := StateFSM.sReadWrite
       }
       //}
     }
