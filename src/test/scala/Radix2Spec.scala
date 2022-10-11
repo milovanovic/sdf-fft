@@ -3,6 +3,8 @@
 package fft
 
 import org.scalatest.{FlatSpec, Matchers}
+//import org.scalatest.flatspec.AnyFlatSpec
+//import org.scalatest.matchers.should.Matchers
 import breeze.math.Complex
 import chisel3.util.log2Up
 
@@ -11,6 +13,7 @@ import dsptools.numbers._
 /*
 * Test various fft sizes, both decimType and some implementation specific parameters such as pipeline registers and complex multiplier structure
 */
+//class Radix2Spec extends AnyFlatSpec with Matchers {
 class Radix2Spec extends FlatSpec with Matchers {
   
   val testerSDFFFT = new FixedSDFFFTTester
@@ -20,8 +23,7 @@ class Radix2Spec extends FlatSpec with Matchers {
     (0 until numSamples).map(i => Complex((math.sin(2 * math.Pi * f1r * i) + math.sin(2 * math.Pi * f2r * i)), 0.0))
     //Random.nextGaussian
   }
-  
-  
+
   //test various fftSizes, pipeline registers and both dif and dit decimType
   //default values for dataWith and twiddleDataWith are used
   for (i <- Seq(4, 8, 16, 32, 64, 128, 256, 512)) {
@@ -52,11 +54,11 @@ class Radix2Spec extends FlatSpec with Matchers {
       }
     }
   }
-  
- // use 4 real multipliers for complex multiplication
+
+  // use 4 real multipliers for complex multiplication
   for (i <- Seq(8, 32)) {
     for (decType <- Seq(DIFDecimType, DITDecimType)) {
-      it should f"compute radix 2 $decType FFT, size $i with no growing logic and 4 multiplier structure" in {
+      it should f"compute radix 2 $decType FFT, size $i with no growing logic and 4 multiplier structure" ignore {
         val testSignal = getRealTone(i, (1.0/i).toDouble)
         val paramsFixed = FFTParams.fixed(
           numPoints = i,
@@ -71,10 +73,10 @@ class Radix2Spec extends FlatSpec with Matchers {
       }
     }
   }
-// use bit reversal stage
+  // use bit reversal stage
   for (i <- Seq(8, 32)) {
     for (decType <- Seq(DIFDecimType, DITDecimType)) {
-      it should f"compute radix 2 $decType FFT, size $i with no growing logic and included bit-reversal stage" in {
+      it should f"compute radix 2 $decType FFT, size $i with no growing logic and included bit-reversal stage" ignore {
         val testSignal = getRealTone(i, (1.0/i).toDouble)
         val paramsFixed = FFTParams.fixed(
           numPoints = i,
