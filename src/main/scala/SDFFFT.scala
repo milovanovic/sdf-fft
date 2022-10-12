@@ -14,6 +14,9 @@ import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 //import firrtl.transforms.{Flatten, FlattenAnnotation, NoDedupAnnotation}
 //import chisel3.util.experimental.{FlattenInstance, InlineInstance}
 
+abstract trait HasIO extends Module {
+  val io: Bundle
+}
 
 /**
   * Interface of the sdf-fft
@@ -34,7 +37,7 @@ class FFTIO [T <: Data : Ring](params: FFTParams[T]) extends Bundle {
   val busy = Output(Bool())
   val overflow = if (params.overflowReg) Some(Output(Vec(log2Up(params.numPoints),Bool()))) else None
   
-  override def cloneType: this.type = FFTIO(params).asInstanceOf[this.type]
+  //override def cloneType: this.type = FFTIO(params).asInstanceOf[this.type]
 }
 
 object FFTIO {
@@ -422,7 +425,7 @@ object SDFFFTApp extends App
       "--log-level", "info"
     )
     //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
-    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
   }
   else {
     val arguments = Array(
@@ -432,6 +435,6 @@ object SDFFFTApp extends App
       "--log-level", "info"
     )
     //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
-    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
   }
 }

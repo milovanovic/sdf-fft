@@ -2,7 +2,8 @@
 
 package fft
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import chisel3.util.log2Up
 import dsptools._
 import dsptools.numbers._ 
@@ -11,7 +12,7 @@ import dsptools.numbers._
 * Test fft with random input data
 */
 
-class Radix2RandomSpec extends FlatSpec with Matchers {
+class Radix2RandomSpec extends AnyFlatSpec with Matchers {
 
   val numSamples = 2
   val fftSizeSeq = Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)

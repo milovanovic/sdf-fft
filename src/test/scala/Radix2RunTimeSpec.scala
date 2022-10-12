@@ -2,14 +2,15 @@
 
 package fft
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import chisel3.util.log2Up
 
 /**
 * This test should run testers for radix 2 module and run time configurable fft size
 */
 
-class Radix2RunTimeSpec extends FlatSpec with Matchers {
+class Radix2RunTimeSpec extends AnyFlatSpec with Matchers {
    
  
   //Test both odd and even number of stages

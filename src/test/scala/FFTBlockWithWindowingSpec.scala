@@ -17,7 +17,9 @@ import freechips.rocketchip.diplomacy._
 import breeze.math.Complex
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.linalg._
-import org.scalatest.{FlatSpec, Matchers}
+//import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import scala.math.{Pi, pow}
 
 trait FFTStandaloneBlock extends FFTBlockWithWindowing[FixedPoint] {
@@ -275,7 +277,7 @@ class FFTBlockWithWindowingTester
   
 }
 
-class FFTBlockWithWindowingSpec extends FlatSpec with Matchers {
+class FFTBlockWithWindowingSpec extends AnyFlatSpec with Matchers {
   implicit val p: Parameters = Parameters.empty
 
   val paramsFFT = FFTParams.fixed(

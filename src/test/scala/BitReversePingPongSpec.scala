@@ -5,7 +5,8 @@ package fft
 import chisel3.experimental.FixedPoint
 import chisel3.iotesters.Driver
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import chisel3.util.log2Up
 
 import dsptools._
@@ -326,7 +327,7 @@ object FixedPingPongTester {
       }}
   }
 }
-class BitReversePingPongSpec extends FlatSpec with Matchers {
+class BitReversePingPongSpec extends AnyFlatSpec with Matchers {
 
   // Add this to get same test case every time
   Random.setSeed(11110L)

@@ -5,6 +5,7 @@ package fft
 import chisel3._
 import chisel3.util._
 import chisel3.experimental._
+import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 import dsptools._
 import dsptools.numbers._
@@ -177,9 +178,9 @@ object FFTDspBlockTL extends App
   )
   val baseAddress = 0x500
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new TLFFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), beatBytes = 4, configInterface = false) with dspblocks.TLStandaloneBlock)
+  val lazyDut = LazyModule(new TLFFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), beatBytes = 4, configInterface = false) with dspblocks.TLStandaloneBlock)
   
-  chisel3.Driver.execute(args, ()=> fftModule.module)
+  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4FFTBlock"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }
 
 object FFTDspBlockAXI4 extends App
@@ -201,8 +202,9 @@ object FFTDspBlockAXI4 extends App
   )
   val baseAddress = 0x500 // just to check if verilog code is succesfully generated or not
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new AXI4FFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = false) with AXI4FFTStandaloneBlock)
-  chisel3.Driver.execute(args, ()=> fftModule.module)
+  val lazyDut = LazyModule(new AXI4FFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = false) with AXI4FFTStandaloneBlock)
+
+  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4FFTBlock"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }
 
 object FFTDspBlockAXI4WithConfig extends App
@@ -224,10 +226,10 @@ object FFTDspBlockAXI4WithConfig extends App
   )
   val baseAddress = 0x500 // just to check if verilog code is succesfully generated or not
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new AXI4FFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = true) with AXI4FFTStandaloneBlock {
+  val lazyDut = LazyModule(new AXI4FFTBlock(paramsFFT, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = true) with AXI4FFTStandaloneBlock {
      val config_in = BundleBridgeSource(() => new AXI4StreamBundle(AXI4StreamBundleParameters(n = 1)))
      configNode.get := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = 1)) := config_in
      val config = InModuleBody { config_in.makeIO() }
   })
-  chisel3.Driver.execute(args, ()=> fftModule.module)
+  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4FFTBlockWithConfig"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }

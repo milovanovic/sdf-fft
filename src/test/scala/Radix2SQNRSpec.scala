@@ -2,7 +2,8 @@
 
 package fft
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import breeze.plot._
 import breeze.linalg._
 import chisel3.util.log2Up
@@ -15,7 +16,7 @@ import dsptools.numbers._
  * Analysis is applied on a large random data set. For presentation dif algorithm has been chosen. Other decimation type (dit) gives similar results.
  */
 
-class Radix2SQNRSpec extends FlatSpec with Matchers {
+class Radix2SQNRSpec extends AnyFlatSpec with Matchers {
   
   val numSamples = 1
   val fftSizeSeq = Seq(2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)

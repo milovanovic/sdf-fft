@@ -5,6 +5,7 @@ package fft
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.FixedPoint
+import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 import dsptools._
 import dsptools.numbers._
@@ -14,7 +15,7 @@ import scala.math.{Pi, pow}
 import dspblocks.CounterWithReset
 import craft.ShiftRegisterMem
 
-class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module {
+class SDFChainRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module with HasIO {
   params.checkNumPointsPow2()
   require(Seq(DITDecimType, DIFDecimType).contains(params.decimType), s"""Decimation type must either be dit or dif""")
   val io = IO(FFTIO(params))
@@ -294,7 +295,7 @@ class SDFStageRadix2IO[T <: Data : Ring](params: FFTParams[T]) extends Bundle {
   val cntr         = Input(UInt(log2Up(params.numPoints).W))
   val en           = Input(Bool())
 
-  override def cloneType: this.type = SDFStageRadix2IO(params).asInstanceOf[this.type]
+  //override def cloneType: this.type = SDFStageRadix2IO(params).asInstanceOf[this.type]
 }
 object SDFStageRadix2IO {
   def apply[T <: Data : Ring](params: FFTParams[T]): SDFStageRadix2IO[T] = new SDFStageRadix2IO(params)
@@ -468,7 +469,8 @@ object SDFChainRadix2SimpleApp extends App
     keepMSBorLSB = Array.fill(log2Up(8))(true),
     binPoint = 0
   )
-  chisel3.Driver.execute(args,()=>new SDFChainRadix2(params))
+
+  (new ChiselStage).execute(Array("--target-dir", "verilog/SDFChainRadix2Simple"), Seq(ChiselGeneratorAnnotation(() => new SDFChainRadix2(params))))
 }
 
 

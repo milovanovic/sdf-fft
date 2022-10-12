@@ -2,7 +2,8 @@
 
 package fft
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import breeze.math.Complex
 import chisel3.util.log2Up
 
@@ -12,7 +13,7 @@ import dsptools.numbers._
 /*
 * Test various fft sizes, both decimType and some implementation specific parameters such as pipeline registers and complex multiplier structure
 */
-class Radix22Spec extends FlatSpec with Matchers {
+class Radix22Spec extends AnyFlatSpec with Matchers {
   
   val testerSDFFFT = new FixedSDFFFTTester
   

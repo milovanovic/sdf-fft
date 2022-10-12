@@ -5,6 +5,7 @@ package fft
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.FixedPoint
+import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 import dsptools._
 import dsptools.numbers._
@@ -12,10 +13,8 @@ import dsptools.numbers._
 import breeze.numerics.{cos, sin}
 import scala.math.{Pi, pow}
 import craft.ShiftRegisterMem
-import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
-
-class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module {
+class SDFChainRadix22[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module with HasIO {
   params.checkNumPointsPow2()
   require(Seq(DITDecimType, DIFDecimType).contains(params.decimType), s"""Decimation type must either be dit or dif""")
   val io = IO(FFTIO(params))
@@ -439,7 +438,7 @@ class SDFStageRadix22IO[T <: Data : Ring](params: FFTParams[T]) extends Bundle {
   val cntr         = Input(UInt(log2Up(params.numPoints).W))
   val en           = Input(Bool())
   
-  override def cloneType: this.type = SDFStageRadix22IO(params).asInstanceOf[this.type]
+  //override def cloneType: this.type = SDFStageRadix22IO(params).asInstanceOf[this.type]
 }
 object SDFStageRadix22IO {
   def apply[T <: Data : Ring](params: FFTParams[T]): SDFStageRadix22IO[T] = new SDFStageRadix22IO(params)
@@ -534,7 +533,7 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   }
   
   if (params.overflowReg) {
-   io.overflow.get := overflow
+    io.overflow.get := overflow
   }
   
   val feedback = ShiftRegister(shift_out, params.numAddPipes, en = true.B)
@@ -558,7 +557,7 @@ object SDFRadix22App extends App
     keepMSBorLSB = Array.fill(log2Up(1024))(true),
     binPoint = 1
   )
-  chisel3.Driver.execute(args,()=>new SDFChainRadix22(params))
+  (new ChiselStage).execute(Array("--target-dir", "verilog/SDFRadix22"), Seq(ChiselGeneratorAnnotation(() => new SDFChainRadix22(params))))
   
 //   val arguments = Array(
 //     "-X", "verilog",

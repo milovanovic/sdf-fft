@@ -5,6 +5,7 @@ package fft
 import chisel3._
 import chisel3.util._
 import chisel3.experimental._
+import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 import dsptools._
 import dsptools.numbers._
@@ -126,7 +127,7 @@ abstract class MultipleFFTsBlock [T <: Data : Real: BinaryRepresentation, D, U, 
       commonFields = commonFields :+ RegField(1, fftDirReg.get,
         RegFieldDesc(name = "fftDir", desc = "transform direction: fft or ifft"))
     }
-    val overflowReg = if (params.fftDirReg) Some(RegInit(0.U(log2Ceil(numStages).W))) else None
+    val overflowReg = if (params.overflowReg) Some(RegInit(0.U(log2Ceil(numStages).W))) else None
     if (params.overflowReg) {
       overflowReg.get.suggestName("overflowReg")
       // overflowReg := fft.io.overflow.get.asUInt
@@ -213,15 +214,15 @@ object MultipleFFTsDspBlockTL extends App
     numMulPipes = 1,
     expandLogic = Array.fill(log2Up(1024))(0),
     keepMSBorLSB = Array.fill(log2Up(1024))(true),
-    overflowReg = true,
+    overflowReg = false,
     keepMSBorLSBReg = true,
     binPoint = 1
   )
   val baseAddress = 0x500
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new TLMultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress + 0x100, 0xFF), beatBytes = 4, configInterface = false) with dspblocks.TLStandaloneBlock)
+  val lazyDut = LazyModule(new TLMultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress + 0x100, 0xFF), beatBytes = 4, configInterface = false) with dspblocks.TLStandaloneBlock)
 
-  chisel3.Driver.execute(args, ()=> fftModule.module)
+  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4MultipleFFTsBlock"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }
 
 object MultipleFFTsDspBlockAXI4 extends App
@@ -243,8 +244,9 @@ object MultipleFFTsDspBlockAXI4 extends App
   )
   val baseAddress = 0x500 // just to check if verilog code is succesfully generated or not
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new AXI4MultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = false) with AXI4MultipleFFTsStandaloneBlock)
-  chisel3.Driver.execute(args, ()=> fftModule.module)
+  val lazyDut = LazyModule(new AXI4MultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress + 0x100, 0xFF), _beatBytes = 4, configInterface = false) with AXI4MultipleFFTsStandaloneBlock)
+
+  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4MultipleFFTsBlock"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }
 
 // For the pynq!
@@ -268,8 +270,9 @@ object MultipleFFTsDspBlockAXI4ForPynq extends App
   )
   val baseAddress = 0x400000000L // just to check if verilog code is succesfully generated or not
   implicit val p: Parameters = Parameters.empty
-  val fftModule = LazyModule(new AXI4MultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress, 0xFF), _beatBytes = 4, configInterface = false) with AXI4MultipleFFTsStandaloneBlock)
-  chisel3.Driver.execute(args, ()=> fftModule.module)
+  val lazyDut = LazyModule(new AXI4MultipleFFTsBlock(paramsMultipleFFTs, AddressSet(baseAddress, 0xFF), _beatBytes = 4, configInterface = false) with AXI4MultipleFFTsStandaloneBlock)
+
+  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4MultipleFFTsBlock"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }
 
 // object MultipleFFTsDspBlockAXI4WithConfig extends App

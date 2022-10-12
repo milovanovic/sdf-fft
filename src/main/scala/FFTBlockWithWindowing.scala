@@ -4,6 +4,8 @@ package fft
 
 import chisel3._
 import chisel3.util._
+import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+
 import dsptools._
 import dsptools.numbers._
 
@@ -201,8 +203,8 @@ object FFTBlockWithWindowingApp extends App
   )
   
   implicit val p: Parameters = Parameters.empty
-  val testModule = LazyModule(new FFTBlockWithWindowing(csrAddress = AddressSet(0x010000, 0xFF), ramAddress = AddressSet(0x000000, 0x0FFF), paramsFFT, beatBytes = 4) with AXI4StandaloneBlock {
+  val lazyDut = LazyModule(new FFTBlockWithWindowing(csrAddress = AddressSet(0x010000, 0xFF), ramAddress = AddressSet(0x000000, 0x0FFF), paramsFFT, beatBytes = 4) with AXI4StandaloneBlock {
     override def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
   })
-  chisel3.Driver.execute(args, ()=> testModule.module)
+  (new ChiselStage).execute(Array("--target-dir", "verilog/FFTBlockWithWindowing"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }

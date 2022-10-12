@@ -4,14 +4,16 @@ package fft
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental.FixedPoint
+import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+
 import dsptools._
 import dsptools.numbers._
-import chisel3.experimental.FixedPoint
+import dsptools.{DspContext}
+
 import breeze.numerics.{cos, sin}
 import scala.math.{Pi, pow}
 import dspblocks.CounterWithReset
-import dsptools.{DspContext}
-
 
 object TwiddleRadix22LookUp {
   def apply[T <: Data : Real](address: UInt, stageN : Int, protoTwiddle: DspComplex[T]): DspComplex[T] = {
@@ -46,7 +48,7 @@ object TwiddleRadix22LookUp {
  * Instantiates and connects SDF FFT stages in series and provides necessary control signals for each stage
  */
 
-class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module {
+class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module with HasIO {
   params.checkNumPointsPow2()
   params.checkExpandLogic()
   params.checkPipeline()
@@ -504,7 +506,7 @@ object SDFRadix22AppRunTime extends App
     keepMSBorLSB = Array.fill(log2Up(16))(true),
     binPoint = 0
   )
-  chisel3.Driver.execute(args,()=>new SDFChainRadix22RunTime(params))
+  (new ChiselStage).execute(Array("--target-dir", "verilog/SDFRadix22RunTime"), Seq(ChiselGeneratorAnnotation(() => new SDFChainRadix22(params))))
 }
 
 

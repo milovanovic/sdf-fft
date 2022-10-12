@@ -4,7 +4,8 @@ package fft
 
 import dsptools._
 import dsptools.numbers._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import breeze.math.Complex
 import breeze.signal.{fourierTr, iFourierTr}
@@ -19,7 +20,7 @@ import scala.util.Random
 * Running this test, various plot diagrams are generated and saved in "test_run_dir" directory
 */
 
-class Radix2PlotSpec extends FlatSpec with Matchers {
+class Radix2PlotSpec extends AnyFlatSpec with Matchers {
   
   it should f"compute and plot radix 2 fft of the size 1024, no growing logic and FixedPoint data type " in {//ignore {
     val paramsFixed = FFTParams.fixed(

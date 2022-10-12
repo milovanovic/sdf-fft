@@ -2,14 +2,15 @@
 
 package fft
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import chisel3.util.log2Up
 
 /**
  * This test should run testers for Radix 2^2 and run time configurable fft size
  */
 
-class Radix22RunTimeSpec extends FlatSpec with Matchers {
+class Radix22RunTimeSpec extends AnyFlatSpec with Matchers {
    
   /**
    *
