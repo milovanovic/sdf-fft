@@ -151,7 +151,7 @@ abstract class MultipleFFTsBlock [T <: Data : Real: BinaryRepresentation, D, U, 
       if (params.runTime) {
         if (configInterface) {
           when (configMode.get === true.B) {
-            when (configNode.get.in(0)._1.fire()) {
+            when (configNode.get.in(0)._1.fire) {
               configReg.get := configNode.get.in(0)._1.bits.data.asUInt
             }
             configNode.get.in(0)._1.ready := ~busy

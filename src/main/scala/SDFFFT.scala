@@ -55,25 +55,7 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
   
   val bitreverse_flag = if (params.useBitReverse) 1 else 0
   override def desiredName = "SDFFFT" + "_size_" + params.numPoints.toString + "_width_" + params.protoIQ.real.getWidth.toString + "_radix_" + params.sdfRadix + "_bitreverse_" + bitreverse_flag.toString
-  
-  // generate rom for window coefficients
-  val windowSeq = params.windowFunc match {
-    case WindowFunctionTypes.Hamming(_, alpha, beta, _) => WindowFunctions.hammingWindow(params.numPoints, alpha, beta)
-    case WindowFunctionTypes.Hanning(_, _) => WindowFunctions.hanningWindow(params.numPoints)
-    case WindowFunctionTypes.Blackman(_, a0, a1, a2, _) => WindowFunctions.blackmanWindow(params.numPoints, a0, a1, a2)
-    case WindowFunctionTypes.Triangular(_, _) => WindowFunctions.triangularWindow(params.numPoints)
-    case WindowFunctionTypes.User(_, userWindow) => {
-      require(userWindow.length == params.numPoints, "Length of specified window function is not the same as fft size")
-      userWindow
-    }
-    case WindowFunctionTypes.None(_) => Seq.fill(params.numPoints)(1.0)
-  }
-  val window = VecInit(windowSeq.map(t => {
-    val coeff = ConvertableTo[T].fromDoubleWithFixedWidth(t, params.protoWin)
-    coeff
-  }))
 
-  val cntWin = RegInit(0.U((log2Ceil(params.numPoints)).W))
   val numPoints = Wire(UInt((log2Ceil(params.numPoints)).W))
 
   if (params.runTime == true)
@@ -81,30 +63,6 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
   else 
     numPoints := params.numPoints.U
 
-  when (io.in.fire()) {
-    cntWin := cntWin + 1.U
-  }
-  when (io.lastIn || cntWin === (numPoints - 1.U)) {
-    cntWin := 0.U
-  }
-  dontTouch(cntWin)
-  cntWin.suggestName("cntWin")
-  
-  val log2Size = log2Ceil(params.numPoints)                  // nummber of stages
-  val subSizes = (1 to log2Size).map(d => pow(2, d).toInt)   // all possible number of stages
-  val subSizesWire = subSizes.map(e => (e.U).asTypeOf(numPoints))
-  val bools = subSizesWire.map(e => e === numPoints)         // create conditions - if run time is off this logic is not going to be generated
-  val cases = bools.zip(1 to log2Size).map { case (bool, numBits) =>
-    bool -> Reverse(cntWin(numBits-1, 0))
-  }
-/*  
-  bools.map{ c => dontTouch(c) }
-  subSizesWire.map { c => dontTouch(c) }*/
-    // runTime configurability here is not checked
-  val addrWin = if (params.decimType == DITDecimType && !params.useBitReverse) MuxCase(0.U(log2Size.W), cases) else cntWin
-  
-  dontTouch(addrWin)
-  addrWin.suggestName("addrWin")
   params.sdfRadix match {
     case "2" => {
       val fft = Module(new SDFChainRadix2(params))
@@ -121,19 +79,17 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
             bitReversal.io.size.get := 1.U << io.fftSize.get
           }
           when (io.fftDirReg.getOrElse(params.fftDir.B)) {
-            /**** do windowing *****/
-            fft.io.in.bits.real := io.in.bits.real * window(addrWin)
-            fft.io.in.bits.imag := io.in.bits.imag * window(addrWin)
-            /**********************/
+            fft.io.in.bits.real := io.in.bits.real //* window(addrWin)
+            fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin)
+
             fft.io.in.valid := io.in.valid
             io.in.ready := fft.io.in.ready
             io.out <> bitReversal.io.out
           }
           .otherwise {
             fft.io.in <> io.in
-            /**** do inverse windowing ? ****/
             io.out.bits := bitReversal.io.out.bits
-            /**********************/
+
             io.out.valid := bitReversal.io.out.valid
             bitReversal.io.out.ready := io.out.ready
           }
@@ -159,19 +115,15 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           bitReversal.io.lastIn := io.lastIn
           
           when (io.fftDirReg.getOrElse(params.fftDir.B)) {
-            /***** do windowing **********/
-            //fft.io.in <> bitReversal.io.out
-            fft.io.in.bits.real := bitReversal.io.out.bits.real * window(addrWin)
-            fft.io.in.bits.imag := bitReversal.io.out.bits.imag * window(addrWin)
+            fft.io.in.bits.real := bitReversal.io.out.bits.real //* window(addrWin)
+            fft.io.in.bits.imag := bitReversal.io.out.bits.imag //* window(addrWin)
             /*****************************/
             fft.io.in.valid := bitReversal.io.out.valid
-            //io.in.ready := bitReversal.io.out.ready
             bitReversal.io.out.ready := fft.io.in.ready
             io.out <> fft.io.out
           }
           .otherwise {
             fft.io.in <> bitReversal.io.out
-            /***** do inverse windowing ? **********/
             io.out.bits := fft.io.out.bits
             /*****************************/
             io.out.valid := fft.io.out.valid
@@ -185,20 +137,15 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
         // cntWin for dif natural, dit bit reversed
         // check fft/ifft
         when (io.fftDirReg.getOrElse(params.fftDir.B)) {
-        //   fft.io.in <> io.in
-          /******** do windowing ****************/
-          fft.io.in.bits.real := (io.in.bits.real * window(addrWin))
-          fft.io.in.bits.imag := (io.in.bits.imag * window(addrWin))
-          /**************************************/
+          fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
+          fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
           fft.io.in.valid := io.in.valid
           io.in.ready := fft.io.in.ready
           io.out <> fft.io.out
         }
        .otherwise {
           fft.io.in <> io.in
-          /********* do inverse windowing ? ******/
           io.out.bits := fft.io.out.bits
-          /***************************************/
           io.out.valid := fft.io.out.valid
           fft.io.out.ready := io.out.ready
         }
@@ -234,21 +181,15 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
             bitReversal.io.size.get := 1.U << io.fftSize.get
           }
           when (io.fftDirReg.getOrElse(params.fftDir.B)) {
-            // do multiplication on input
-             //fft.io.in <> io.in
-            /**** do windowing *****/
-            fft.io.in.bits.real := io.in.bits.real * window(addrWin)
-            fft.io.in.bits.imag := io.in.bits.imag * window(addrWin)
-            /**********************/
+            fft.io.in.bits.real := io.in.bits.real// * window(addrWin)
+            fft.io.in.bits.imag := io.in.bits.imag// * window(addrWin)
             fft.io.in.valid := io.in.valid
             io.in.ready := fft.io.in.ready
             io.out <> bitReversal.io.out
           }
           .otherwise {
             fft.io.in <> io.in
-            /**** do inverse windowing? ****/
             io.out.bits := bitReversal.io.out.bits
-            /*******************************/
             io.out.valid := bitReversal.io.out.valid
             bitReversal.io.out.ready := io.out.ready
           }
@@ -273,22 +214,16 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           bitReversal.io.lastIn := io.lastIn
           
           when (io.fftDirReg.getOrElse(params.fftDir.B)) {
-            /***** do windowing **********/
-            //fft.io.in <> bitReversal.io.out
             bitReversal.io.out.ready := fft.io.in.ready
-            fft.io.in.bits.real := bitReversal.io.out.bits.real * window(addrWin)
-            fft.io.in.bits.imag := bitReversal.io.out.bits.imag * window(addrWin)
-            /****************************/
+            fft.io.in.bits.real := bitReversal.io.out.bits.real// * window(addrWin)
+            fft.io.in.bits.imag := bitReversal.io.out.bits.imag// * window(addrWin)
             fft.io.in.valid := bitReversal.io.out.valid
-            //io.in.ready := bitReversal.io.out.ready
             bitReversal.io.out.ready := fft.io.in.ready
             io.out <> fft.io.out
           }
           .otherwise {
             fft.io.in <> bitReversal.io.out
-            /***** do inverse windowing? *********/
             io.out.bits := fft.io.out.bits
-            /*************************************/
             io.out.valid := fft.io.out.valid
             fft.io.out.ready := io.out.ready
           }
@@ -297,23 +232,16 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
         }
       }
       else {
-        // cntWin for dif natural, dit bit reversed
-        // check fft/ifft
         when (io.fftDirReg.getOrElse(params.fftDir.B)) {
-        //   fft.io.in <> io.in
-          /******** do windowing ******************/
-          fft.io.in.bits.real := (io.in.bits.real * window(addrWin))
-          fft.io.in.bits.imag := (io.in.bits.imag * window(addrWin))
-          /****************************************/
+          fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
+          fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
           fft.io.in.valid := io.in.valid
           io.in.ready := fft.io.in.ready
           io.out <> fft.io.out
         }
        .otherwise {
           fft.io.in <> io.in
-          /********* do inverse windowing? *******/
           io.out.bits := fft.io.out.bits
-          /***************************************/
           io.out.valid := fft.io.out.valid
           fft.io.out.ready := io.out.ready
         }
@@ -434,7 +362,6 @@ object SDFFFTApp extends App
       "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
       "--log-level", "info"
     )
-    //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
     (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
   }
 }

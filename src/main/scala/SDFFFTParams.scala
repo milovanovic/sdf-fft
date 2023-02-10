@@ -25,7 +25,6 @@ case class FFTParams[T <: Data] (
     protoIQ         : DspComplex[T],         // input data type
     protoIQOut      : DspComplex[T],         // output data type
     trimEnable      : Boolean,               // trim output data to protoIQout type
-    protoWin        : T,                     // window coefficients data type
     fftType         : String,                // type of FFT to use
     decimType       : DecimType,             // use DIT or DIF version
     sdfRadix        : String,                // radix
@@ -44,7 +43,6 @@ case class FFTParams[T <: Data] (
     use4Muls        : Boolean,               // use 3 or 4 multiplier structure for complex multiplier
     useBitReverse   : Boolean,               // include bit reversal stage so that both input and output streaming data are in natural order
     minSRAMdepth    : Int,                   // use SRAM for the delay line larger than minSRAMdepth
-    windowFunc      : WindowFunctionType     // window function
  ) {
   // Allowed values for some parameters
   final val allowedFftTypes      = Seq("sdf") //for future improvements it is open to add new fft types
@@ -114,14 +112,12 @@ object FFTParams {
             use4Muls        : Boolean = false,
             useBitReverse   : Boolean = false,
             minSRAMdepth    : Int = 0,
-            windowFunc      : WindowFunctionType = WindowFunctionTypes.None()
             ): FFTParams[FixedPoint] = {
     val protoIQ      = DspComplex(FixedPoint(dataWidth.W, binPoint.BP))
     val protoIQOut   = DspComplex(FixedPoint(dataWidthOut.W, binPointOut.BP))
     // to allow for 1, -1, j, and -j to be expressed.
     val protoTwiddle = DspComplex(FixedPoint(twiddleWidth.W, (twiddleWidth-2).BP))
     // protoIQs
-    val protoWin = FixedPoint(windowFunc.dataWidth.W, (windowFunc.dataWidth - 2).BP)
     val protoIQstages = Array.fill(log2Up(numPoints))(protoIQ).zip(expandLogic.scanLeft(0)(_+_).tail).map {
 	    case((protoIQ, expandLogic)) => {
         DspComplex(FixedPoint((protoIQ.real.getWidth + expandLogic).W, binPoint.BP))
@@ -133,7 +129,6 @@ object FFTParams {
       protoIQOut = protoIQOut,
       trimEnable = trimEnable,
       protoTwiddle = protoTwiddle,
-      protoWin = protoWin,
       expandLogic = expandLogic,
       protoIQstages = protoIQstages,
       fftType = fftType,
@@ -152,7 +147,6 @@ object FFTParams {
       use4Muls = use4Muls,
       useBitReverse = useBitReverse,
       minSRAMdepth = minSRAMdepth,
-      windowFunc = windowFunc
     )
   }
   // Golden model
@@ -179,14 +173,12 @@ object FFTParams {
             fftDirReg       : Boolean = false,
             use4Muls        : Boolean = false,
             useBitReverse   : Boolean = false,
-            minSRAMdepth    : Int = 0,
-            windowFunc      : WindowFunctionType = WindowFunctionTypes.None()
+            minSRAMdepth    : Int = 0
 ): FFTParams[DspReal] = {
     val protoIQ      = DspComplex(new DspReal, new DspReal)
     val protoIQOut   = DspComplex(new DspReal, new DspReal)
     // to allow for 1, -1, j, and -j to be expressed.
     val protoTwiddle = DspComplex(new DspReal, new DspReal)
-    val protoWin = new DspReal
     val protoIQstages = Array.fill(log2Up(numPoints))(protoIQ).zip(expandLogic.scanLeft(expandLogic(0))(_+_).tail).map {
 	   case((protoIQ, expandLogic)) => DspComplex(new DspReal,new DspReal)
     }
@@ -196,7 +188,6 @@ object FFTParams {
       protoIQOut = protoIQOut,
       trimEnable = trimEnable,
       protoTwiddle = protoTwiddle,
-      protoWin = protoWin,
       expandLogic = expandLogic,
       protoIQstages = protoIQstages,
       fftType = fftType,
@@ -215,7 +206,6 @@ object FFTParams {
       use4Muls = use4Muls,
       useBitReverse = useBitReverse,
       minSRAMdepth = minSRAMdepth,
-      windowFunc = windowFunc
     )
   }
 }

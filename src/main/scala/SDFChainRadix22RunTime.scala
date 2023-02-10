@@ -158,7 +158,7 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
   val overflowReg = RegInit(VecInit(Seq.fill(numStages)(false.B)))
 
   state_next := state
-  val fireLast = io.lastIn && io.in.fire()
+  val fireLast = io.lastIn && io.in.fire
   // simple state machine
   switch (state) {
     is (sIdle) {
@@ -166,10 +166,10 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
       regNumStages := io.fftSize.getOrElse(numStages.U) // number of stages
       scaleBflyReg := io.keepMSBorLSBReg.getOrElse(VecInit(Seq.fill(numStages)(false.B)))
       fftOrifft := io.fftDirReg.getOrElse(params.fftDir.B)
-      when (io.in.fire()) { state_next := sProcess }
+      when (io.in.fire) { state_next := sProcess }
     }
     is (sProcess) {
-      when (io.lastIn && io.in.fire()) {
+      when (io.lastIn && io.in.fire) {
         state_next := sFlush
       }
     }
@@ -190,12 +190,12 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
   val lastIndeed = RegInit(false.B)
   val initialInDone = RegInit(false.B)
   val initialInDonePrev = RegInit(false.B)
-  val pktEnd = (cntValidOut === (numPoints - 1.U)) && io.out.fire()
+  val pktEnd = (cntValidOut === (numPoints - 1.U)) && io.out.fire
   
   when (state_next === sIdle) {
     initialInDone := false.B
   }
-  .elsewhen (cnt === (numPoints - 1.U) && io.in.fire()) {
+  .elsewhen (cnt === (numPoints - 1.U) && io.in.fire) {
     initialInDone := true.B
   }
   initialInDonePrev := initialInDone
@@ -211,7 +211,7 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
   when ((state_next === sIdle && pktEnd) || pktEnd) {
     cntValidOut := 0.U
   }
-  .elsewhen (io.out.fire()) {
+  .elsewhen (io.out.fire) {
     cntValidOut := cntValidOut + 1.U
   }
     
@@ -285,7 +285,7 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
   .elsewhen (state === sFlush && cntr_wires(0) === numPoints-1.U) {
     stopEnable := true.B
   }*/
-  val enableInit = io.in.fire() || (state === sFlush && io.out.ready)// && stopEnable === false.B)
+  val enableInit = io.in.fire || (state === sFlush && io.out.ready)// && stopEnable === false.B)
   
   when (state_next === sIdle) {
     cnt := 0.U
@@ -303,7 +303,7 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
   
   val input_data = Mux(activeStages(0), fft_in_bits, rstProtoIQ)
 
-  //(0 until numStages).foldLeft(((io.in.fire(), cnt))) {
+  //(0 until numStages).foldLeft(((io.in.fire, cnt))) {
   (0 until numStages).foldLeft(((enableInit, cnt))) {
     case ((stageEn, stageCnt), currStage) => {
       enableVector(currStage) := stageEn //collect all enable signals
@@ -448,7 +448,7 @@ class SDFChainRadix22RunTime[T <: Data : Real : BinaryRepresentation](val params
     initialOutDone := false.B
   }
   
-  val validOutBeforePipes = Mux(numPoints === 2.U, RegNext(enableInit) && io.in.fire(), lastStageEn && initialOutDone)
+  val validOutBeforePipes = Mux(numPoints === 2.U, RegNext(enableInit) && io.in.fire, lastStageEn && initialOutDone)
   
   val output = if (params.decimType == DIFDecimType) ShiftRegister(outputWires.last, complexMulLatency, en = true.B) else outputWires(regNumStages-1.U)
   val latency = (params.numAddPipes + complexMulLatency) * log2Up(params.numPoints)

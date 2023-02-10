@@ -77,7 +77,7 @@ abstract class FFTBlock [T <: Data : Real: BinaryRepresentation, D, U, E, O, B <
         configMode.suggestName("configMode")
         // number of stages is sent/ this can be AXI4 stream with datawidth 8
         when (configMode === true.B) {
-          when (configNode.get.in(0)._1.fire()) {
+          when (configNode.get.in(0)._1.fire) {
             configReg := configNode.get.in(0)._1.bits.data.asUInt
           }
           configNode.get.in(0)._1.ready := ~busy

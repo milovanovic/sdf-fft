@@ -482,67 +482,7 @@ trait SDFFFTTester[T <: chisel3.Data] extends HasTesterUtil[SDFFFT[T]] with HasS
     poke(c.io.lastIn, 0)
     step(40)
   }
-  def testWindowFunctions(tol: Int = 6, testSignal: Seq[Complex], params: FFTParams[T]) = {
-    
-    val cyclesWait = 5 * params.numPoints
-    val fftSize = params.numPoints
-    val numStages = log2Up(fftSize)
-    
-    val windowSeq = params.windowFunc match {
-      case WindowFunctionTypes.Hamming(_, alpha, beta, _) => WindowFunctions.hammingWindow(params.numPoints, alpha, beta)
-      case WindowFunctionTypes.Hanning(_, _) => WindowFunctions.hanningWindow(params.numPoints)
-      case WindowFunctionTypes.Blackman(_, a0, a1, a2, _) => WindowFunctions.blackmanWindow(params.numPoints, a0, a1, a2)
-      case WindowFunctionTypes.Triangular(_, _) => WindowFunctions.triangularWindow(params.numPoints)
-      case WindowFunctionTypes.User(_, userWindow) => {
-        require(userWindow.length == params.numPoints, "Length of specified window function is not the same as fft size")
-        userWindow
-      }
-      case WindowFunctionTypes.None(_) => Seq.fill(params.numPoints)(1.0)
-    }
-    
-    val inWithWindowing = testSignal.zip(windowSeq).map { case(sig, win) => sig*win }
-    
-    val inp = if (params.decimType == DITDecimType) bitrevorder_data(testSignal) else testSignal
-    val out = if (params.decimType == DITDecimType) fourierTr(DenseVector(inWithWindowing.toArray)).toScalaVector else bitrevorder_data(fourierTr(DenseVector(inWithWindowing.toArray)).toScalaVector)
-    
-    val scalingFactor = pow(2, params.expandLogic.filter(_ == 0).size).toInt
-    val input = inp.iterator
-    var output = Seq[Complex]()
-    
-    poke(c.io.in.valid, 0)
-    poke(c.io.out.ready, 0)
-    step(2)
-    poke(c.io.out.ready, 1)
-    poke(c.io.in.valid, 1)
 
-    while (output.length < fftSize) {
-      if (input.hasNext && peek(c.io.in.ready)) {
-        poke(c.io.in.bits, input.next())
-      }
-      if (peek(c.io.out.valid)) {
-        params.protoIQ.real match {
-          case dspR: DspReal => realTolDecPts.withValue(tol) { expect(c.io.out.bits, out(output.length)/scalingFactor) }
-          case _ => fixTolLSBs.withValue(tol) { expect(c.io.out.bits, out(output.length)/scalingFactor) }
-        }
-        output = output :+ peek(c.io.out.bits)
-      }
-      step(1)
-    }
-    poke(c.io.in.valid, 0)
-    step(inp.length)
-    reset(2)
-    val bitrevorderOutput = if (params.decimType == DIFDecimType) bitrevorder_data(output.toVector) else output
-    val scalafft = fourierTr(DenseVector(inWithWindowing.toArray)).toScalaVector
-    
-    // uncomment to see effect of window functions
-    // plot_fft(bitrevorderOutput, scalafft.map(c => c/scalingFactor), true)
-    
-    /*println("Expected result:")
-    out.map(c => println((c/scalingFactor).toString))
-    
-    println("Result:")
-    output.map(c => println((c/scalingFactor).toString))*/
-  }
 }
 
 class FixedPointSDFFFTTester(val c: SDFFFT[FixedPoint]) extends DspTester(c) with SDFFFTTester[FixedPoint] {
@@ -563,11 +503,6 @@ class FixedSDFFFTTester {
     dsptools.Driver.execute(() => new SDFFFT(params), Array("-tbn", "verilator")){ c => new FixedPointSDFFFTTester(c) { 
         if (params.useBitReverse) {
           this.testBitReversal(tolLSBs, testSignal, params)
-        }
-        else if (win) {
-          updatableDspVerbose.withValue(false) {
-            this.testWindowFunctions(tolLSBs, testSignal, params)
-          }
         }
         else {
           this.testFFT(tolLSBs, testSignal, params)

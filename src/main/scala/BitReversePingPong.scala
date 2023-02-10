@@ -64,10 +64,10 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   val rstCntWritten = Wire(Bool())
   val rstCntRead = Wire(Bool())
   // Counter to keep track of how much data is written in memory
-  //val cntWritten = CounterWithReset(io.in.fire(), size, rstCntWritten)
+  //val cntWritten = CounterWithReset(io.in.fire, size, rstCntWritten)
   val readyWrite = state =/= StateFSM.sReadOnly//state_next =/= StateFSM.sReadOnly
   val cntWritten = CounterWithReset(io.in.valid && readyWrite, size, rstCntWritten)
-  //val cntRead = CounterWithReset(io.out.fire(), size, rstCntRead)
+  //val cntRead = CounterWithReset(io.out.fire, size, rstCntRead)
   val validRead = state === StateFSM.sReadOnly || state === StateFSM.sReadWrite
   val cntRead = CounterWithReset(io.out.ready && validRead, size, rstCntRead)
   
@@ -116,7 +116,7 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   else 
     writeAddress := MuxCase(0.U(log2Size.W), cases)*/
   
-  when (io.in.fire() && io.lastIn) {
+  when (io.in.fire && io.lastIn) {
     last := true.B
   }
   val lastRead = cntReadMax  && io.out.ready
@@ -137,17 +137,17 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
       writePing := ~writePing
     }
   }
-  when (io.in.fire() && writePing) {
+  when (io.in.fire && writePing) {
   //when(io.in.ready && readyWrite && writePing) { 
     memPing(writeAddress) := io.in.bits
   }
-  when (io.in.fire() && ~writePing) {
+  when (io.in.fire && ~writePing) {
  // when (io.in.ready && readyWrite && ~writePing) {
    memPong(writeAddress) := io.in.bits
   }
   
   when (state === StateFSM.sIdle) {
-    when (io.in.fire()) {
+    when (io.in.fire) {
       state_next := StateFSM.sWriteOnly
     }
   }
@@ -223,7 +223,7 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   outQueueLast.io.deq.ready := io.out.ready
   
   // not logical but it works!
-  io.lastOut   := state === StateFSM.sIdle && io.out.fire() //outQueueLast.io.deq.bits
+  io.lastOut   := state === StateFSM.sIdle && io.out.fire //outQueueLast.io.deq.bits
   dontTouch(io.lastOut)
 }
 
