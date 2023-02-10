@@ -27,7 +27,7 @@ The Chisel generator in this repository implements radix 2 and radix 2<sup>2</su
 * `SDFFFTParams.scala` - contains parameters definition.
 * `BitReversePingPong.scala` - contains ping-pong buffer and does bit-reversed addressing.
 * `FFTBlock.scala` - contains description of `FFTBlock`.
-* `FFTBlockWithWindowing.scala` - contains description of `FFTBlockWithWindowing` AXI4DspBlock. Inside module, memory for window coefficients is instantiated where memory mapped AXI4 bus is used for writing data into the memory.
+
 ## Interface of the SDF-FFT Chisel Generator
 
 Interface of the implemented SDF-FFT generator showing inout signals as well as control and status registers is presented in the figure below.
@@ -38,8 +38,7 @@ Interface of the implemented SDF-FFT generator showing inout signals as well as 
 [Decoupled](https://github.com/freechipsproject/chisel3/wiki/Interfaces-Bulk-Connections) interface is used where .bits is input IQ sample (in time or frequency domain depending on fft direction)
 * `in: Flipped(Decoupled(DspComplex[T]))` - input IQ sample (in time domain - direct fft or in frequency domain - inverse fft) wrapped with valid/ready signals
 * `lastIn: Bool` - indicates the last sample in the input stream and triggers data flushing
-* Optional control registers: `fftSize` , `fftDirReg`, `keepMSBorLSBReg`, `doWindowing`
-
+* Optional control registers: `fftSize` , `fftDirReg`, `keepMSBorLSBReg`
 #### Outputs
 
 Decoupled interface is used where .bits is output IQ sample (in frequency or time domain depending on fft direction)
@@ -106,7 +105,6 @@ The explanation of each parameter is given below:
 * `use4Muls` - use 3 or 4 multiplier structure for complex multiplication
 * `useBitReverse` - include `BitReversePingPong` module
 * `minSRAMdepth` - use SRAM for the delay line larger than `minSRAMdepth`
-*  `windowFunc`  - define window function - hamming, hanning, blackman, triangular, user specified or no window function
 
 ## Prerequisites
 
@@ -136,7 +134,6 @@ Besides main source code, various tests for sdf generator are provided in this r
 * `SDFFFTTester` - contains useful test functions for testing sdf-fft generator. Common tester is used for radix 2 and radix 2<sup>2</sup> design.
 * `SDFFFTRunTimeTester` - contains test function which tests run time configurable fft size. Common tester is used for radix 2, radix 2<sup>2</sup> and radix 2<sup>2</sup> module which provides full run time configurability.
 * `TesterUtils.scala` - contains useful helper functions for testers such as `getTone`, `getRandSignal`, `calc_sqnr,` plot functions etc.
-* `FFTWithWindowingBlockSpec` - tests fft block with windowing, simple test example with `AXI4StreamModel` and `AXI4MasterModel`
 
 Some test examples described above are written for both `FixedPoint` and `DspReal` Chisel data type. The `DspReal` Chisel data type has been used to simulate golden model of the proposed generator.
 
@@ -154,7 +151,7 @@ Much more useful information about this work can be found inside ["A Highly Para
 )
 [comment]: <> (dev branch - branch for further improvements and testing)
 
-[comment]: <> (TODO: Exclude files with windowing. New block "streaming windowing function" does that)
+[comment]: <> (TODO: Exclude files with windowing. New block "streaming windowing function" does that - DONE!)
 
 <!--- In addition to current plots which give SQNR vs Number of Stages for different rounding types after the adder, add analysis for twiddle factor multiplication rounding/truncation. Also analyze the SQNR for a realistic case of 12-bit digital I and Q input (from an ADC) up to 16-bit after, say, 10 butterfly stages (for 1024 points FFT) with options of growing up to 22 bits and then truncate to 16 or grow to 16 and then keep them constant. 16 bits is to fit the 32-bit AXI4-Stream. Compare SQNR against resource utilization. This is for SIPS 2023.)
 -->
@@ -172,6 +169,3 @@ Sub - directory name is always:
 `sdffft_size_[fft_size]_width_[word_size]_bitreverse_[useBitReverse]`
 
 When `useBitReverse` parameter is set to 1, additional  SRAM memories are used in design and it is expected that total area is increased.
-
-
-
