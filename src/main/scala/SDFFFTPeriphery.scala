@@ -18,13 +18,14 @@ import dsptools.numbers._
 /* FFT parameters and addresses */
 case class FFTParamsAndAddress[T <: Data: Real: BinaryRepresentation] (
   fftParams  : FFTParams[T],
-  fftAddress : AddressSet
+  fftAddress : AddressSet,
+  useAXI4    : Boolean
 )
 
 /* AXI4SDFFFT FixedPoint Key */
 case object SDFFFTKey extends Field[Option[FFTParamsAndAddress[FixedPoint]]](None)
 
-trait CanHavePeripheryAXI4SDFFFT { this: BaseSubsystem =>
+trait CanHavePeripherySDFFFT { this: BaseSubsystem =>
   private val portName = "fft"
 
   val fft = p(SDFFFTKey) match {
@@ -63,7 +64,7 @@ trait CanHavePeripheryAXI4SDFFFT { this: BaseSubsystem =>
 }
 
 trait CanHavePeripherySDFFFTModuleImp extends LazyModuleImp{
-  val outer: CanHavePeripheryAXI4SDFFFT
+  val outer: CanHavePeripherySDFFFT
 }
 
 class SDFFFTIO[T <: Data](private val gen1: T, private val gen2: T) extends Bundle {
@@ -72,10 +73,11 @@ class SDFFFTIO[T <: Data](private val gen1: T, private val gen2: T) extends Bund
 }
 
 /* Mixin to add AXI4SDFFFT to rocket config */
-class WithSDFFFT (fftParams : FFTParams[FixedPoint], fftAddress: AddressSet = AddressSet(0x2000, 0xFF)) extends Config((site, here, up) => {
+class WithSDFFFT (fftParams : FFTParams[FixedPoint], fftAddress: AddressSet = AddressSet(0x2000, 0xFF), useAXI4 : Boolean) extends Config((site, here, up) => {
   case SDFFFTKey => Some((FFTParamsAndAddress(
     fftParams  = fftParams,
-    fftAddress = fftAddress
+    fftAddress = fftAddress,
+    useAXI4    = useAXI4,
   )))
 })
 
