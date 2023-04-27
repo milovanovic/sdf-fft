@@ -22,25 +22,35 @@ case class FFTParamsAndAddress[T <: Data: Real: BinaryRepresentation] (
 )
 
 /* AXI4SDFFFT FixedPoint Key */
-case object AXI4SDFFFTKey extends Field[Option[FFTParamsAndAddress[FixedPoint]]](None)
+case object SDFFFTKey extends Field[Option[FFTParamsAndAddress[FixedPoint]]](None)
 
 trait CanHavePeripheryAXI4SDFFFT { this: BaseSubsystem =>
   private val portName = "fft"
 
-  // Only build if we are using the TL (nonAXI4) version
-  val fft = p(AXI4SDFFFTKey) match {
+  val fft = p(SDFFFTKey) match {
     case Some(params) => {
-      val fft = LazyModule(new AXI4FFTBlock(address = params.fftAddress, params = params.fftParams, _beatBytes = pbus.beatBytes, configInterface = false))
-
-      pbus.toSlave(Some(portName)) {
-        // toVariableWidthSlave doesn't use holdFirstDeny, which TLToAXI4() needsx
-        fft.mem.get := AXI4Buffer () := TLToAXI4 () := TLFragmenter(pbus.beatBytes, pbus.blockBytes, holdFirstDeny = true)
+      val fft = if (params.useAXI4) {
+        val fft = LazyModule(new AXI4FFTBlock(address = params.fftAddress, params = params.fftParams, _beatBytes = pbus.beatBytes, configInterface = false))
+        // Connect mem
+        pbus.toSlave(Some(portName)) {
+          // toVariableWidthSlave doesn't use holdFirstDeny, which TLToAXI4() needs
+          fft.mem.get := AXI4Buffer () := TLToAXI4 () := TLFragmenter(pbus.beatBytes, pbus.blockBytes, holdFirstDeny = true)
+        }
+        // return
+        Some(fft)
+      }
+      else {
+        val fft = LazyModule(new TLFFTBlock(address = params.fftAddress, params = params.fftParams, beatBytes = pbus.beatBytes, configInterface = false))
+        // Connect mem
+        pbus.toVariableWidthSlave(Some(portName)) { fft.mem.get }
+        // return
+        Some(fft)
       }
       // streamNode
       val ioInNode = BundleBridgeSource(() => new AXI4StreamBundle(AXI4StreamBundleParameters(n = pbus.beatBytes)))
       val ioOutNode = BundleBridgeSink[AXI4StreamBundle]()
 
-      ioOutNode := AXI4StreamToBundleBridge(AXI4StreamSlaveParameters()) := fft.streamNode := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = pbus.beatBytes)) := ioInNode
+      ioOutNode := AXI4StreamToBundleBridge(AXI4StreamSlaveParameters()) := fft.get.streamNode := BundleBridgeToAXI4Stream(AXI4StreamMasterParameters(n = pbus.beatBytes)) := ioInNode
 
       val fft_in = InModuleBody { ioInNode.makeIO() }
       val fft_out = InModuleBody { ioOutNode.makeIO() }
@@ -52,26 +62,26 @@ trait CanHavePeripheryAXI4SDFFFT { this: BaseSubsystem =>
   }
 }
 
-trait CanHavePeripheryAXI4SDFFFTModuleImp extends LazyModuleImp{
+trait CanHavePeripherySDFFFTModuleImp extends LazyModuleImp{
   val outer: CanHavePeripheryAXI4SDFFFT
 }
 
-class AXI4SDFFFTIO[T <: Data](private val gen1: T, private val gen2: T) extends Bundle {
+class SDFFFTIO[T <: Data](private val gen1: T, private val gen2: T) extends Bundle {
   val in = DataMirror.internal.chiselTypeClone[T](gen1)
   val out = Flipped(DataMirror.internal.chiselTypeClone[T](gen2))
 }
 
 /* Mixin to add AXI4SDFFFT to rocket config */
-class WithAXI4SDFFFT (fftParams : FFTParams[FixedPoint], fftAddress: AddressSet = AddressSet(0x2000, 0xFF)) extends Config((site, here, up) => {
-  case AXI4SDFFFTKey => Some((FFTParamsAndAddress(
+class WithSDFFFT (fftParams : FFTParams[FixedPoint], fftAddress: AddressSet = AddressSet(0x2000, 0xFF)) extends Config((site, here, up) => {
+  case SDFFFTKey => Some((FFTParamsAndAddress(
     fftParams  = fftParams,
     fftAddress = fftAddress
   )))
 })
 
 
-case object AXI4SDFFFTAdapter {
-  def tieoff(fft: Option[AXI4SDFFFTIO[AXI4StreamBundle]]) {
+case object SDFFFTAdapter {
+  def tieoff(fft: Option[SDFFFTIO[AXI4StreamBundle]]) {
     fft.foreach { s =>
       s.in.valid := false.B
       s.in.bits := DontCare
@@ -79,5 +89,5 @@ case object AXI4SDFFFTAdapter {
     }
   }
 
-  def tieoff(fft: AXI4SDFFFTIO[AXI4StreamBundle]) { tieoff(Some(fft)) }
+  def tieoff(fft: SDFFFTIO[AXI4StreamBundle]) { tieoff(Some(fft)) }
 }
