@@ -301,7 +301,7 @@ object SDFStageRadix2IO {
   def apply[T <: Data : Ring](params: FFTParams[T]): SDFStageRadix2IO[T] = new SDFStageRadix2IO(params)
 }
 
-class SDFStageRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T], val delay: Int, val useGrow: Boolean, val keepMSBOrLSB: Boolean, val singlePortSRAM: Boolean = true) extends Module {
+class SDFStageRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T], val delay: Int, val useGrow: Boolean, val keepMSBOrLSB: Boolean, val singlePortSRAM: Boolean = false) extends Module {
   params.checkNumPointsPow2()
   require(isPow2(delay) && delay >= 1, "delay must be a power of 2 greater than or equal to 1")
 
@@ -383,7 +383,7 @@ class SDFStageRadix2[T <: Data : Real : BinaryRepresentation](val params: FFTPar
   val shift_in = Wire(inp.cloneType)
   shift_in := Mux(load_input, inp, butterfly_outputs(1))
   val shift_out = Wire(shift_in.cloneType)
-  
+
   if (params.decimType == DIFDecimType) {
     if (params.minSRAMdepth < delay) {
       shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, use_sp_mem = singlePortSRAM, name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem")

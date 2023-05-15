@@ -444,7 +444,7 @@ object SDFStageRadix22IO {
   def apply[T <: Data : Ring](params: FFTParams[T]): SDFStageRadix22IO[T] = new SDFStageRadix22IO(params)
 }
 
-class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params: FFTParams[T], val delay: Int, val useGrow: Boolean, val keepMSBOrLSB: Boolean, val singlePortSRAM: Boolean = true) extends Module {
+class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params: FFTParams[T], val delay: Int, val useGrow: Boolean, val keepMSBOrLSB: Boolean, val singlePortSRAM: Boolean = false) extends Module {
   params.checkNumPointsPow2()
   require(isPow2(delay) && delay >= 1, "delay must be a power of 2 greater than or equal to 1")
   
