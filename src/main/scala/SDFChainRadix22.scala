@@ -444,7 +444,7 @@ object SDFStageRadix22IO {
   def apply[T <: Data : Ring](params: FFTParams[T]): SDFStageRadix22IO[T] = new SDFStageRadix22IO(params)
 }
 
-class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params: FFTParams[T], val delay: Int, val useGrow: Boolean, val keepMSBOrLSB: Boolean) extends Module {
+class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params: FFTParams[T], val delay: Int, val useGrow: Boolean, val keepMSBOrLSB: Boolean, val singlePortSRAM: Boolean = true) extends Module {
   params.checkNumPointsPow2()
   require(isPow2(delay) && delay >= 1, "delay must be a power of 2 greater than or equal to 1")
   
@@ -470,7 +470,7 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   
   if (params.decimType == DIFDecimType) {
     if (params.minSRAMdepth < delay) {
-      shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem")
+      shift_out := ShiftRegisterMem(shift_in, delay, en = io.en, use_sp_mem = singlePortSRAM, name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem")
     }
     else {
       shift_out := ShiftRegister(shift_in, delay, en = io.en)
@@ -479,7 +479,7 @@ class SDFStageRadix22[T <: Data : Real : Ring : BinaryRepresentation](val params
   else {
     if (params.minSRAMdepth < delay) {
       //shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = this.name + s"_mem")
-      shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem")
+      shift_out := ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B), use_sp_mem = singlePortSRAM, name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem")
     }
     else {
       shift_out := ShiftRegister(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
