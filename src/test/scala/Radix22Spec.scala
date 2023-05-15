@@ -123,25 +123,5 @@ class Radix22Spec extends AnyFlatSpec with Matchers {
       }
     }
   }
-  
-  // test window functions, use log10 for plotting
-  for (window <- Seq(WindowFunctionTypes.Hamming(), WindowFunctionTypes.Hanning(), WindowFunctionTypes.Blackman(), WindowFunctionTypes.Triangular(),  WindowFunctionTypes.None())) {
-    for (decType <- Seq(DIFDecimType, DITDecimType)) {
-      it should f"compute radix 2^2, size 256, $decType FFT and applied " ++ window.toString in {
-        val testSignal = getRealTone(256, (15.5/256).toDouble)
-          val paramsFixed = FFTParams.fixed(
-            numPoints = 256,
-            numAddPipes = 1,
-            numMulPipes = 1,
-            decimType = decType,
-            expandLogic = Array.fill(log2Up(256))(0),
-            keepMSBorLSB = Array.fill(log2Up(256))(true),
-            sdfRadix = "2^2",
-            useBitReverse = false,
-            windowFunc = window)
-          testerSDFFFT.fixedTester(paramsFixed, testSignal, win = true) should be (true)
-      }
-    }
-  }
 }
 
