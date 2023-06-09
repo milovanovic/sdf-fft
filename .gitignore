@@ -1,5 +1,6 @@
 test_run_dir/
 generated-rtl/
+
 *.fir
 *.v
 *.conf
@@ -8,3 +9,4 @@ generated-rtl/
 
 target/
 project/
+verilog/
