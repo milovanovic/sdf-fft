@@ -18,15 +18,15 @@ object RegEnableWithReset {
     */
   def apply[T <: Data](next: T, init: T, reset: Bool, enable: Bool): T = {
     val r = RegInit(init)
-    
-    when (reset) { r := init }
-    .elsewhen (enable) { r := next }
+
+    when(reset) { r := init }
+      .elsewhen(enable) { r := next }
     r
   }
 }
 // Try to integrate it into chisel3 util library
-object ShiftRegisterWithReset
-{
+object ShiftRegisterWithReset {
+
   /** Returns the n-cycle delayed version of the input signal.
     *
     * @param in input to delay
@@ -38,7 +38,7 @@ object ShiftRegisterWithReset
   def apply[T <: Data](in: T, n: Int, resetData: T, reset: Bool, en: Bool = true.B): T = {
     // The order of tests reflects the expected use cases.
     if (n != 0) {
-      RegEnableWithReset(apply(in, n-1, resetData, reset, en), resetData, reset, en)
+      RegEnableWithReset(apply(in, n - 1, resetData, reset, en), resetData, reset, en)
     } else {
       in
     }
@@ -49,13 +49,15 @@ object ShiftRegisterWithReset
   * Simple radix 2 Butterfly
   */
 object Butterfly extends hasContext {
-  def apply[T <: Data : Real : BinaryRepresentation](in: Seq[DspComplex[T]]): Seq[DspComplex[T]] = {
+  def apply[T <: Data: Real: BinaryRepresentation](in: Seq[DspComplex[T]]): Seq[DspComplex[T]] = {
     require(in.length == 2, "2-point DFT only for no defined twiddle type")
-    (Seq(DspContext.alter(
-      DspContext.current.copy(overflowType = Grow, binaryPointGrowth = 0))
-        { in(0) context_+ in(1) },
-      DspContext.alter(
-        DspContext.current.copy(overflowType = Grow, binaryPointGrowth = 0))
-        { in(0) context_- in(1) }))
-   }
+    (
+      Seq(
+        DspContext.alter(DspContext.current.copy(overflowType = Grow, binaryPointGrowth = 0)) {
+          in(0).context_+(in(1))
+        },
+        DspContext.alter(DspContext.current.copy(overflowType = Grow, binaryPointGrowth = 0)) { in(0).context_-(in(1)) }
+      )
+    )
+  }
 }

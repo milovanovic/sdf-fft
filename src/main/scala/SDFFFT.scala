@@ -21,46 +21,48 @@ abstract trait HasIO extends Module {
 /**
   * Interface of the sdf-fft
   */
-class FFTIO [T <: Data : Ring](params: FFTParams[T]) extends Bundle {
+class FFTIO[T <: Data: Ring](params: FFTParams[T]) extends Bundle {
   val in = Flipped(Decoupled(params.protoIQ))
-    val out = if (params.trimEnable) Decoupled(params.protoIQOut) else Decoupled(params.protoIQstages(log2Up(params.numPoints)-1))
+  val out =
+    if (params.trimEnable) Decoupled(params.protoIQOut)
+    else Decoupled(params.protoIQstages(log2Up(params.numPoints) - 1))
 
   val lastOut = Output(Bool())
   val lastIn = Input(Bool())
   // control registers
   val fftSize = if (params.runTime) Some(Input(UInt((log2Up(params.numPoints)).W))) else None
-  val keepMSBorLSBReg = if (params.keepMSBorLSBReg) Some(Input(Vec(log2Up(params.numPoints),Bool()))) else None
+  val keepMSBorLSBReg = if (params.keepMSBorLSBReg) Some(Input(Vec(log2Up(params.numPoints), Bool()))) else None
   val fftDirReg = if (params.fftDirReg) Some(Input(Bool())) else None
   //val flushDataOut = Input(Bool())
-  
+
   // status registers
   val busy = Output(Bool())
-  val overflow = if (params.overflowReg) Some(Output(Vec(log2Up(params.numPoints),Bool()))) else None
-  
+  val overflow = if (params.overflowReg) Some(Output(Vec(log2Up(params.numPoints), Bool()))) else None
+
   //override def cloneType: this.type = FFTIO(params).asInstanceOf[this.type]
 }
 
 object FFTIO {
-  def apply[T <: Data : Ring](params: FFTParams[T]): FFTIO[T] = new FFTIO(params)
+  def apply[T <: Data: Ring](params: FFTParams[T]): FFTIO[T] = new FFTIO(params)
 }
-
 
 /**
   * Top level sdf core
   */
-class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) extends Module {
+class SDFFFT[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) extends Module {
   val io = IO(FFTIO(params))
   params.checkFftType()
   params.checkSDFRadix()
-  
+
   val bitreverse_flag = if (params.useBitReverse) 1 else 0
-  override def desiredName = "SDFFFT" + "_size_" + params.numPoints.toString + "_width_" + params.protoIQ.real.getWidth.toString + "_radix_" + params.sdfRadix + "_bitreverse_" + bitreverse_flag.toString
+  override def desiredName =
+    "SDFFFT" + "_size_" + params.numPoints.toString + "_width_" + params.protoIQ.real.getWidth.toString + "_radix_" + params.sdfRadix + "_bitreverse_" + bitreverse_flag.toString
 
   val numPoints = Wire(UInt((log2Ceil(params.numPoints)).W))
 
   if (params.runTime == true)
-    numPoints := (2.U << (io.fftSize.get-1.U))
-  else 
+    numPoints := (2.U << (io.fftSize.get - 1.U))
+  else
     numPoints := params.numPoints.U
 
   params.sdfRadix match {
@@ -72,21 +74,20 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir =  true
+            bitReverseDir = true
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
             bitReversal.io.size.get := 1.U << io.fftSize.get
           }
-          when (io.fftDirReg.getOrElse(params.fftDir.B)) {
+          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
             fft.io.in.bits.real := io.in.bits.real //* window(addrWin)
             fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin)
 
             fft.io.in.valid := io.in.valid
             io.in.ready := fft.io.in.ready
             io.out <> bitReversal.io.out
-          }
-          .otherwise {
+          }.otherwise {
             fft.io.in <> io.in
             io.out.bits := bitReversal.io.out.bits
 
@@ -98,14 +99,13 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           bitReversal.io.lastIn := fft.io.lastOut
           io.lastOut := bitReversal.io.lastOut
           dontTouch(io.lastOut)
-        }
-        else {
-        // DIT
+        } else {
+          // DIT
           val paramsBR = BitReversePingPongParams(
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir =  false
+            bitReverseDir = false
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
@@ -113,37 +113,37 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           }
           bitReversal.io.in <> io.in
           bitReversal.io.lastIn := io.lastIn
-          
-          when (io.fftDirReg.getOrElse(params.fftDir.B)) {
+
+          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
             fft.io.in.bits.real := bitReversal.io.out.bits.real //* window(addrWin)
             fft.io.in.bits.imag := bitReversal.io.out.bits.imag //* window(addrWin)
-            /*****************************/
+            /** **************************
+              */
             fft.io.in.valid := bitReversal.io.out.valid
             bitReversal.io.out.ready := fft.io.in.ready
             io.out <> fft.io.out
-          }
-          .otherwise {
+          }.otherwise {
             fft.io.in <> bitReversal.io.out
             io.out.bits := fft.io.out.bits
-            /*****************************/
+
+            /** **************************
+              */
             io.out.valid := fft.io.out.valid
             fft.io.out.ready := io.out.ready
           }
           fft.io.lastIn := bitReversal.io.lastOut
           io.lastOut := fft.io.lastOut
         }
-      }
-      else {
+      } else {
         // cntWin for dif natural, dit bit reversed
         // check fft/ifft
-        when (io.fftDirReg.getOrElse(params.fftDir.B)) {
+        when(io.fftDirReg.getOrElse(params.fftDir.B)) {
           fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
           fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
           fft.io.in.valid := io.in.valid
           io.in.ready := fft.io.in.ready
           io.out <> fft.io.out
-        }
-       .otherwise {
+        }.otherwise {
           fft.io.in <> io.in
           io.out.bits := fft.io.out.bits
           io.out.valid := fft.io.out.valid
@@ -167,27 +167,31 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
       }
     }
     case "2^2" => {
-      val fft = if (params.runTimeR22.getOrElse(false) == true) Module(new SDFChainRadix22RunTime(params)) else Module(new SDFChainRadix22(params))//Module(new SDFChainRadix22RunTime(params)  with FlattenInstance) else Module(new SDFChainRadix22(params) with FlattenInstance)
+      val fft =
+        if (params.runTimeR22.getOrElse(false) == true) Module(new SDFChainRadix22RunTime(params))
+        else
+          Module(
+            new SDFChainRadix22(params)
+          ) //Module(new SDFChainRadix22RunTime(params)  with FlattenInstance) else Module(new SDFChainRadix22(params) with FlattenInstance)
       if (params.useBitReverse) {
         if (params.decimType == DIFDecimType) {
           val paramsBR = BitReversePingPongParams(
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir =  true
+            bitReverseDir = true
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
             bitReversal.io.size.get := 1.U << io.fftSize.get
           }
-          when (io.fftDirReg.getOrElse(params.fftDir.B)) {
-            fft.io.in.bits.real := io.in.bits.real// * window(addrWin)
-            fft.io.in.bits.imag := io.in.bits.imag// * window(addrWin)
+          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
+            fft.io.in.bits.real := io.in.bits.real // * window(addrWin)
+            fft.io.in.bits.imag := io.in.bits.imag // * window(addrWin)
             fft.io.in.valid := io.in.valid
             io.in.ready := fft.io.in.ready
             io.out <> bitReversal.io.out
-          }
-          .otherwise {
+          }.otherwise {
             fft.io.in <> io.in
             io.out.bits := bitReversal.io.out.bits
             io.out.valid := bitReversal.io.out.valid
@@ -197,14 +201,13 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           bitReversal.io.in <> fft.io.out
           bitReversal.io.lastIn := fft.io.lastOut
           io.lastOut := bitReversal.io.lastOut
-        }
-        else {
-        // DIT
+        } else {
+          // DIT
           val paramsBR = BitReversePingPongParams(
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir =  false
+            bitReverseDir = false
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
@@ -212,16 +215,15 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           }
           bitReversal.io.in <> io.in
           bitReversal.io.lastIn := io.lastIn
-          
-          when (io.fftDirReg.getOrElse(params.fftDir.B)) {
+
+          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
             bitReversal.io.out.ready := fft.io.in.ready
-            fft.io.in.bits.real := bitReversal.io.out.bits.real// * window(addrWin)
-            fft.io.in.bits.imag := bitReversal.io.out.bits.imag// * window(addrWin)
+            fft.io.in.bits.real := bitReversal.io.out.bits.real // * window(addrWin)
+            fft.io.in.bits.imag := bitReversal.io.out.bits.imag // * window(addrWin)
             fft.io.in.valid := bitReversal.io.out.valid
             bitReversal.io.out.ready := fft.io.in.ready
             io.out <> fft.io.out
-          }
-          .otherwise {
+          }.otherwise {
             fft.io.in <> bitReversal.io.out
             io.out.bits := fft.io.out.bits
             io.out.valid := fft.io.out.valid
@@ -230,16 +232,14 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
           fft.io.lastIn := bitReversal.io.lastOut
           io.lastOut := fft.io.lastOut
         }
-      }
-      else {
-        when (io.fftDirReg.getOrElse(params.fftDir.B)) {
+      } else {
+        when(io.fftDirReg.getOrElse(params.fftDir.B)) {
           fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
           fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
           fft.io.in.valid := io.in.valid
           io.in.ready := fft.io.in.ready
           io.out <> fft.io.out
-        }
-       .otherwise {
+        }.otherwise {
           fft.io.in <> io.in
           io.out.bits := fft.io.out.bits
           io.out.valid := fft.io.out.valid
@@ -248,7 +248,7 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
         fft.io.lastIn := io.lastIn
         io.lastOut := fft.io.lastOut
       }
-      
+
       io.busy := fft.io.busy
       // optional ports/registers
       if (params.runTime) {
@@ -267,8 +267,7 @@ class SDFFFT[T <: Data : Real : BinaryRepresentation](val params: FFTParams[T]) 
   }
 }
 
-object SDFFFTSimpleApp extends App
-{
+object SDFFFTSimpleApp extends App {
   val buildDirName = "verilog"
   val wordSize = 16
   val fftSize = 256
@@ -294,29 +293,36 @@ object SDFFFTSimpleApp extends App
   print(radix)
   if (separateVerilog == true) {
     val arguments = Array(
-      "--target-dir", buildDirName,
-      "-e", "verilog",
-      "-X", "verilog",
-      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
-      "--log-level", "info"
+      "--target-dir",
+      buildDirName,
+      "-e",
+      "verilog",
+      "-X",
+      "verilog",
+      "--repl-seq-mem",
+      "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level",
+      "info"
     )
     //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
-    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
-  }
-  else {
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
+  } else {
     val arguments = Array(
-      "--target-dir", buildDirName,
-      "-X", "verilog",
-      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
-      "--log-level", "info"
+      "--target-dir",
+      buildDirName,
+      "-X",
+      "verilog",
+      "--repl-seq-mem",
+      "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level",
+      "info"
     )
     //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
-    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params))))
+    (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
   }
 }
 
-object SDFFFTApp extends App
-{
+object SDFFFTApp extends App {
   implicit def int2bool(b: Int) = if (b == 1) true else false
   if (args.length < 5) {
     println("This application requires at least 5 arguments, check Makefile")
@@ -346,21 +352,29 @@ object SDFFFTApp extends App
   print(radix)
   if (separateVerilog == true) {
     val arguments = Array(
-      "--target-dir", buildDirName,
-      "-e", "verilog",
-      "-X", "verilog",
-      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
-      "--log-level", "info"
+      "--target-dir",
+      buildDirName,
+      "-e",
+      "verilog",
+      "-X",
+      "verilog",
+      "--repl-seq-mem",
+      "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level",
+      "info"
     )
     //(new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() =>new SDFFFT(params) with FlattenInstance)))
     (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
-  }
-  else {
+  } else {
     val arguments = Array(
-      "--target-dir", buildDirName,
-      "-X", "verilog",
-      "--repl-seq-mem", "-c:SDFChainRadix22:-o:mem.conf",
-      "--log-level", "info"
+      "--target-dir",
+      buildDirName,
+      "-X",
+      "verilog",
+      "--repl-seq-mem",
+      "-c:SDFChainRadix22:-o:mem.conf",
+      "--log-level",
+      "info"
     )
     (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new SDFFFT(params))))
   }
