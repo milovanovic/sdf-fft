@@ -32,8 +32,8 @@ The shell script `remove_submodules.sh` runs commands that are the inverse of th
 
 ## Documentation
 
-* doc/sdffft.rst - detailed documentation about design generator
-* doc/images - block diagrams, sqnr analysis graphs
+* doc/sdf_fft_generator.md - detailed documentation about design generator
+* doc/images - desing block diagrams, SQNR analysis graphs
 
 Much more useful information about this work can be found inside ["A Highly Parametrizable Chisel HCL Generator of Single-Path Delay Feedback FFT Processors"](https://ieeexplore.ieee.org/document/8889581) paper published on International Conference on Microelectronics, MIEL 2019.
 
