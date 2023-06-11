@@ -3,8 +3,6 @@
 A Single-path Delay Feedback (SDF) FFT Chisel Generator
 =======================================================
 
-[![Build](https://github.com/milovanovic/sdf-fft/actions/workflows/test.yml/badge.svg)](https://github.com/milovanovic/sdf-fft/actions/workflows/test.yml)
-
 ## Overview
 
 This repository contains a highly parameterizable Single-path Delay-Feedback (SDF) FFT Generator written in [Chisel](www.chisel-lang.org) hardware design language. Single-path Delay-Feedback fully streaming pipelined architecture described by this generator provides a balanced trade-off between occupation of resources and the execution time.
