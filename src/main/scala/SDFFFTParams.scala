@@ -42,18 +42,18 @@ case class FFTParams[T <: Data](
   fftDirReg:       Boolean, // include register for configuring fft direction (fft or ifft)
   use4Muls:        Boolean, // use 3 or 4 multiplier structure for complex multiplier
   useBitReverse:   Boolean, // include bit reversal stage so that both input and output streaming data are in natural order
-  minSRAMdepth:    Int // use SRAM for the delay line larger than minSRAMdepth
-) {
+  minSRAMdepth:    Int, // use SRAM for the delay line larger than minSRAMdepth
+  singlePortSRAM:  Boolean) {
   // Allowed values for some parameters
   final val allowedFftTypes = Seq("sdf") //for future improvements it is open to add new fft types
   final val allowedDecimTypes = Seq(DITDecimType, DIFDecimType)
   final val allowedSDFRadices = Seq("2", "2^2")
 
   // Common require functions used in FFT blocks
-  def checkNumPointsPow2() {
+  def checkNumPointsPow2(): Unit = {
     require(isPow2(numPoints), "number of points must be a power of 2")
   }
-  def checkFftType() {
+  def checkFftType(): Unit = {
     require(
       allowedFftTypes.contains(fftType),
       s"""FFT type must be one of the following: ${allowedFftTypes.mkString(", ")}"""
@@ -62,7 +62,7 @@ case class FFTParams[T <: Data](
 //   def checkDecimType() {
 //     require(allowedDecimTypes.contains(decimType), s"""Decimation type must be one of the following: ${allowedDecimTypes.mkString(", ")}""")
 //   }
-  def checkSDFRadix() {
+  def checkSDFRadix(): Unit = {
     require(
       allowedSDFRadices.contains(sdfRadix),
       s"""Radix must be one of the following: ${allowedSDFRadices.mkString(", ")}"""
@@ -70,7 +70,7 @@ case class FFTParams[T <: Data](
   }
 
   // muxes can not accept nonequal data types beccause of that only specific stages can support grow logic
-  def checkExpandLogic() {
+  def checkExpandLogic(): Unit = {
     //used only for radix 2^2 and full run time configurability
     if (decimType == DIFDecimType || (decimType == DITDecimType && (expandLogic.size % 2 == 0))) {
       expandLogic.tail.zipWithIndex.collect { case (e, i) if ((i + 1) % 2) == 0 => e }.foreach { grow =>
@@ -91,7 +91,7 @@ case class FFTParams[T <: Data](
      */
   }
   // combinational loop occurs for pipeline = 0 and radix 2^2 module with full run time configurability
-  def checkPipeline() {
+  def checkPipeline(): Unit = {
     require(
       numAddPipes != 0 | numMulPipes != 0,
       s"This design requires number of pipeline registers to be at least one"
@@ -124,7 +124,8 @@ object FFTParams {
     fftDirReg:       Boolean = false,
     use4Muls:        Boolean = false,
     useBitReverse:   Boolean = false,
-    minSRAMdepth:    Int = 0
+    minSRAMdepth:    Int = 0,
+    singlePortSRAM:  Boolean = false
   ): FFTParams[FixedPoint] = {
     val protoIQ = DspComplex(FixedPoint(dataWidth.W, binPoint.BP))
     val protoIQOut = DspComplex(FixedPoint(dataWidthOut.W, binPointOut.BP))
@@ -159,7 +160,8 @@ object FFTParams {
       fftDirReg = fftDirReg,
       use4Muls = use4Muls,
       useBitReverse = useBitReverse,
-      minSRAMdepth = minSRAMdepth
+      minSRAMdepth = minSRAMdepth,
+      singlePortSRAM = singlePortSRAM
     )
   }
   // Golden model
@@ -187,7 +189,8 @@ object FFTParams {
     fftDirReg:       Boolean = false,
     use4Muls:        Boolean = false,
     useBitReverse:   Boolean = false,
-    minSRAMdepth:    Int = 0
+    minSRAMdepth:    Int = 0,
+    singlePortSRAM:  Boolean = false
   ): FFTParams[DspReal] = {
     val protoIQ = DspComplex(new DspReal, new DspReal)
     val protoIQOut = DspComplex(new DspReal, new DspReal)
@@ -220,7 +223,8 @@ object FFTParams {
       fftDirReg = fftDirReg,
       use4Muls = use4Muls,
       useBitReverse = useBitReverse,
-      minSRAMdepth = minSRAMdepth
+      minSRAMdepth = minSRAMdepth,
+      singlePortSRAM = singlePortSRAM
     )
   }
 }

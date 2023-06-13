@@ -109,19 +109,22 @@ class Radix22Spec extends AnyFlatSpec with Matchers {
 
   for (i <- Seq(8, 32)) {
     for (decType <- Seq(DIFDecimType, DITDecimType)) {
-      it should f"compute radix 2^2 $decType FFT, size $i with no growing logic and included bit-reversal stage" in {
-        val testSignal = getRealTone(i, (1.0 / i).toDouble)
-        val paramsFixed = FFTParams.fixed(
-          numPoints = i,
-          numAddPipes = 1,
-          numMulPipes = 1,
-          decimType = decType,
-          expandLogic = Array.fill(log2Up(i))(0),
-          keepMSBorLSB = Array.fill(log2Up(i))(true),
-          sdfRadix = "2^2",
-          useBitReverse = true
-        )
-        testerSDFFFT.fixedTester(paramsFixed, testSignal) should be(true)
+      for (singlePortSRAM <- Seq(true, false)) {
+        it should f"compute radix 2^2 $decType FFT, size $i, singlePortSRAM = $singlePortSRAM with no growing logic and included bit-reversal stage" in {
+          val testSignal = getRealTone(i, (1.0 / i).toDouble)
+          val paramsFixed = FFTParams.fixed(
+            numPoints = i,
+            numAddPipes = 1,
+            numMulPipes = 1,
+            decimType = decType,
+            expandLogic = Array.fill(log2Up(i))(0),
+            keepMSBorLSB = Array.fill(log2Up(i))(true),
+            sdfRadix = "2^2",
+            useBitReverse = true,
+            singlePortSRAM = singlePortSRAM
+          )
+          testerSDFFFT.fixedTester(paramsFixed, testSignal) should be(true)
+        }
       }
     }
   }

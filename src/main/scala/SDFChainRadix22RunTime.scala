@@ -248,7 +248,9 @@ class SDFChainRadix22RunTime[T <: Data: Real: BinaryRepresentation](val params: 
     case ((delayLog2, delay), ind) => {
       val stageparams = params.copy(protoIQ = params.protoIQstages(ind))
       val useGrow = if (stageparams.expandLogic(ind) == 1) true else false
-      val stage = Module(new SDFStageRadix22(stageparams, delay = delay, useGrow, params.keepMSBorLSB(ind)))
+      val stage = Module(
+        new SDFStageRadix22(stageparams, delay = delay, useGrow, params.keepMSBorLSB(ind), params.singlePortSRAM)
+      )
       if (params.keepMSBorLSBReg) {
         stage.io.scale.get := io.keepMSBorLSBReg.get(ind)
       }

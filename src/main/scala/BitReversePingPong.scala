@@ -16,8 +16,8 @@ case class BitReversePingPongParams[T <: Data](
   val proto:          DspComplex[T], // data type
   val pingPongSize:   Int, // ping pong size or fft size
   val adjustableSize: Boolean, // include register for determining current ping - pong size
-  val bitReverseDir:  Boolean // determine whether read or write address is bit reversed
-) {
+  val bitReverseDir:  Boolean, // determine whether read or write address is bit reversed
+  val singlePortSRAM: Boolean = false) {
   requireIsChiselType(proto)
 }
 
@@ -27,14 +27,16 @@ object BitReversePingPongParams {
     binPoint:       Int = 14,
     pingPongSize:   Int = 16,
     adjustableSize: Boolean = false,
-    bitReverseDir:  Boolean = true
+    bitReverseDir:  Boolean = true,
+    singlePortSRAM: Boolean = false
   ): BitReversePingPongParams[FixedPoint] = {
     val proto = DspComplex(FixedPoint(dataWidth.W, binPoint.BP))
     BitReversePingPongParams(
       proto = proto,
       pingPongSize = pingPongSize,
       adjustableSize = adjustableSize,
-      bitReverseDir = bitReverseDir
+      bitReverseDir = bitReverseDir,
+      singlePortSRAM = singlePortSRAM
     )
   }
 }
@@ -56,6 +58,9 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
   val memPong = SyncReadMem(size, params.proto)
   val totalDataWidth = params.proto.real.getWidth * 2
   memPing.suggestName("SRAM" + "_depth_" + size.toString + "_width_" + totalDataWidth.toString + s"_mem")
+
+  val memPongReal = SyncReadMem(size, params.proto.real)
+  val memPongImag = SyncReadMem(size, params.proto.imag)
 
   object StateFSM extends ChiselEnum {
     val sIdle, sWriteOnly, sReadWrite, sReadOnly = Value
@@ -138,13 +143,39 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
       writePing := ~writePing
     }
   }
-  when(io.in.fire && writePing) {
-    //when(io.in.ready && readyWrite && writePing) {
-    memPing(writeAddress) := io.in.bits
-  }
-  when(io.in.fire && ~writePing) {
-    // when (io.in.ready && readyWrite && ~writePing) {
-    memPong(writeAddress) := io.in.bits
+
+  val rstProtoIQ = Wire(io.in.bits.cloneType)
+  rstProtoIQ.real := Real[T].fromDouble(0.0)
+  rstProtoIQ.imag := Real[T].fromDouble(0.0)
+  val memPongData = WireDefault(rstProtoIQ)
+  val memPingData = WireDefault(rstProtoIQ)
+
+  if (params.singlePortSRAM) {
+    val addressPong = Mux(io.in.fire && (writePing === false.B), writeAddress, readAddress)
+    val addressPing = Mux(io.in.fire && (writePing === true.B), writeAddress, readAddress)
+
+    val rdWrPortPong = memPong(addressPong)
+    when(io.in.fire && ~writePing) {
+      rdWrPortPong := io.in.bits
+    }
+    memPongData := rdWrPortPong
+
+    val rdWrPortPing = memPing(addressPing)
+    when(io.in.fire && writePing) {
+      rdWrPortPing := io.in.bits
+    }
+    memPingData := rdWrPortPing
+  } else {
+    when(io.in.fire && writePing) {
+      //when(io.in.ready && readyWrite && writePing) {
+      memPing(writeAddress) := io.in.bits
+    }
+    when(io.in.fire && ~writePing) {
+      // when (io.in.ready && readyWrite && ~writePing) {
+      memPong(writeAddress) := io.in.bits
+    }
+    memPingData := memPing(readAddress)
+    memPongData := memPong(readAddress)
   }
 
   when(state === StateFSM.sIdle) {
@@ -198,8 +229,6 @@ class BitReversePingPong[T <: Data: Real](val params: BitReversePingPongParams[T
 
   state := state_next
   // naming ping/pong!
-  val memPingData = memPing(readAddress)
-  val memPongData = memPong(readAddress)
 
 //   io.out.bits  := Mux(RegNext(readPing), memPingData, memPongData)
 //   io.in.ready  := state =/= StateFSM.sReadOnly
@@ -247,8 +276,17 @@ object BitReversePingPongApp extends App {
     bitReverseDir = true,
     adjustableSize = true
   )
-  (new ChiselStage).execute(
-    Array("--target-dir", "verilog/BitReversePingPong"),
-    Seq(ChiselGeneratorAnnotation(() => new BitReversePingPong(params)))
+//   (new ChiselStage).execute(
+//     Array("--target-dir", "verilog/BitReversePingPong"),
+//     Seq(ChiselGeneratorAnnotation(() => new BitReversePingPong(params)))
+//   )
+  val arguments = Array(
+    "-X",
+    "verilog",
+    "--repl-seq-mem",
+    "-c:BitReversePingPong:-o:mem.conf",
+    "--log-level",
+    "info"
   )
+  (new ChiselStage).execute(arguments, Seq(ChiselGeneratorAnnotation(() => new BitReversePingPong(params))))
 }

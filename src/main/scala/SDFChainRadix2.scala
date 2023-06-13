@@ -150,7 +150,8 @@ class SDFChainRadix2[T <: Data: Real: BinaryRepresentation](val params: FFTParam
     case ((delayLog2, delay), ind) => {
       val stageparams = params.copy(protoIQ = params.protoIQstages(ind))
       val useGrow = if (stageparams.expandLogic(ind) == 1) true else false
-      val stage = Module(new SDFStageRadix2(stageparams, delay = delay, useGrow, params.keepMSBorLSB(ind)))
+      val stage =
+        Module(new SDFStageRadix2(stageparams, delay = delay, useGrow, params.keepMSBorLSB(ind), params.singlePortSRAM))
       if (params.keepMSBorLSBReg) {
         stage.io.scale.get := scaleBflyReg(ind)
       }
@@ -410,24 +411,38 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
 
   if (params.decimType == DIFDecimType) {
     if (params.minSRAMdepth < delay) {
-      shift_out := ShiftRegisterMem(
-        shift_in,
+      shift_out.real := ShiftRegisterMem(
+        shift_in.real,
         delay,
         io.en,
         use_sp_mem = singlePortSRAM,
-        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem"
+        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_real" + s"_mem"
+      )
+      shift_out.imag := ShiftRegisterMem(
+        shift_in.imag,
+        delay,
+        io.en,
+        use_sp_mem = singlePortSRAM,
+        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_imag" + s"_mem"
       )
     } else {
       shift_out := ShiftRegister(shift_in, delay, io.en)
     }
   } else {
     if (params.minSRAMdepth < delay) {
-      shift_out := ShiftRegisterMem(
-        shift_in,
+      shift_out.real := ShiftRegisterMem(
+        shift_in.real,
         delay,
         ShiftRegister(io.en, complexMulLatency, true.B),
         use_sp_mem = singlePortSRAM,
-        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem"
+        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_real" + s"_mem"
+      )
+      shift_out.imag := ShiftRegisterMem(
+        shift_in.imag,
+        delay,
+        ShiftRegister(io.en, complexMulLatency, true.B),
+        use_sp_mem = singlePortSRAM,
+        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_imag" + s"_mem"
       )
     } else {
       shift_out := ShiftRegister(shift_in, delay, ShiftRegister(io.en, complexMulLatency, true.B))

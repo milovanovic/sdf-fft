@@ -74,7 +74,8 @@ class SDFFFT[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) ex
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir = true
+            bitReverseDir = true,
+            singlePortSRAM = params.singlePortSRAM
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
@@ -105,7 +106,8 @@ class SDFFFT[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) ex
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir = false
+            bitReverseDir = false,
+            singlePortSRAM = params.singlePortSRAM
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
@@ -179,7 +181,8 @@ class SDFFFT[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) ex
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir = true
+            bitReverseDir = true,
+            singlePortSRAM = params.singlePortSRAM
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
@@ -207,7 +210,8 @@ class SDFFFT[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) ex
             proto = params.protoIQstages.last,
             pingPongSize = params.numPoints,
             adjustableSize = params.runTime,
-            bitReverseDir = false
+            bitReverseDir = false,
+            singlePortSRAM = params.singlePortSRAM
           )
           val bitReversal = Module(new BitReversePingPong(paramsBR))
           if (params.runTime) {
@@ -349,7 +353,6 @@ object SDFFFTApp extends App {
     keepMSBorLSB = Array.fill(log2Up(fftSize))(true),
     minSRAMdepth = 8
   )
-  print(radix)
   if (separateVerilog == true) {
     val arguments = Array(
       "--target-dir",

@@ -326,7 +326,7 @@ class BitReversePingPongSpec extends AnyFlatSpec with Matchers {
 
   // Add this to get same test case every time
   Random.setSeed(11110L)
-  val pingPongSize = 8
+  val pingPongSize = 16
   val testSignal = (0 until pingPongSize).map(x => Complex(Random.nextDouble(), Random.nextDouble()))
 
   it should f"test bitreverse ping-pong without adjustableSize and bitReverseDir = true" in { // DIF
@@ -363,6 +363,20 @@ class BitReversePingPongSpec extends AnyFlatSpec with Matchers {
       pingPongSize = pingPongSize,
       adjustableSize = true,
       bitReverseDir = true
+    )
+    FixedPingPongTester(paramsPingPong, testSignal) should be(true)
+  }
+
+  it should f"test bitreverse ping-pong with adjustableSize and bitReverseDir = true and single port SRAMs" in {
+    // input is in bitreverse order
+    // output is in natural
+    val paramsPingPong = BitReversePingPongParams.fixed(
+      dataWidth = 16,
+      binPoint = 14,
+      pingPongSize = pingPongSize,
+      adjustableSize = true,
+      bitReverseDir = true,
+      singlePortSRAM = true
     )
     FixedPingPongTester(paramsPingPong, testSignal) should be(true)
   }
