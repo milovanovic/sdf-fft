@@ -1,18 +1,9 @@
 import Tests._
 
-lazy val fft = Project("fft", file("."))
-  .dependsOn(`rocket-dsp-utils`)
-  .settings(
-    chiselSettings,
-    chiselTestSettings,
-    commonSettings,
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.+" % "test",
-      "org.typelevel" %% "spire" % "0.17.0",
-      "org.scalanlp" %% "breeze" % "1.1",
-      "junit" % "junit" % "4.13" % "test",
-      "org.scalacheck" %% "scalacheck" % "1.14.3" % "test",
-  ))
+lazy val sdf_fft = Project("sdf_fft", file("."))
+  .dependsOn(rocketchip, `rocket-dsp-utils`)
+  .settings(libraryDependencies ++= rocketLibDeps.value)
+  .settings(commonSettings)
 
 lazy val commonSettings = Seq(
   organization := "edu.berkeley.cs",

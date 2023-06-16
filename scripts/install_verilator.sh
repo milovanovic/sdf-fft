@@ -1,12 +1,18 @@
 set -e
+[ "$VERILATOR_CHECKOUT_TARGET" ] || VERILATOR_CHECKOUT_TARGET=v3.926
+[ "$VERILATOR_REPO_URL" ] || VERILATOR_REPO_URL='https://github.com/verilator/verilator.git'
+# if [ ! "$VERILATOR_CHECKOUT_TARGET" ]; then
+#   echo "error: VERILATOR_CHECKOUT_TARGET not defined" >&2
+#   exit 1
+# fi
 # Install Verilator (http://www.veripool.org/projects/verilator/wiki/Installing)
-if [ ! -f $INSTALL_DIR/bin/verilator ]; then 
+if [ ! -f $INSTALL_DIR/bin/verilator ]; then
   mkdir -p $INSTALL_DIR
-  git clone http://github.com/verilator/verilator.git
+  git clone "$VERILATOR_REPO_URL"
   unset VERILATOR_ROOT
   cd verilator
   git pull
-  git checkout v3.926
+  git checkout "$VERILATOR_CHECKOUT_TARGET"
   autoconf
   ./configure --prefix=$INSTALL_DIR
   make

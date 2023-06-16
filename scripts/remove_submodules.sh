@@ -14,10 +14,12 @@ git submodule deinit -f tools/cde/
 rm -rf .git/modules/tools/cde/
 git rm -f tools/cde/
 
-git submodule deinit -f sims/firesim
-rm -rf .git/modules/sims/firesim
-git rm -f sims/firesim
+#git submodule deinit -f sims/firesim
+#rm -rf .git/modules/sims/firesim
+#git rm -f sims/firesim
 
+git restore --staged .gitmodules
 rm .gitmodules
+
 mv build.sbt build.txt
 rm project/plugins.sbt

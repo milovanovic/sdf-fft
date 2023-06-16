@@ -335,10 +335,9 @@ object MultipleFFTsDspBlockAXI4ForPynq extends App {
     numAddPipes = 1,
     numMulPipes = 1,
     use4Muls = true,
-    expandLogic =
-      Array.fill(log2Up(512))(1).zipWithIndex.map {
-        case (e, ind) => if (ind < 4) 1 else 0
-      }, // expand first four stages, other do not grow
+    expandLogic = Array.fill(log2Up(512))(1).zipWithIndex.map {
+      case (e, ind) => if (ind < 4) 1 else 0
+    }, // expand first four stages, other do not grow
     sdfRadix = "2",
     trimType = Convergent,
     keepMSBorLSB = Array.fill(log2Up(512))(true),

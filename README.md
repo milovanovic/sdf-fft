@@ -22,7 +22,7 @@ Proposed design generator is intended to be used inside [chipyard](https://githu
 ```
 git clone https://github.com/milovanovic/sdf-fft.git
 cd sdf-fft
-./init_submodules_and_build_sbt.sh
+./scripts/init_submodules_and_build_sbt.sh
 sbt test
 ```
 

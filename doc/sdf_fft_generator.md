@@ -30,7 +30,7 @@ The Chisel generator in this repository implements radix 2 and radix 2<sup>2</su
 ## Interface of the SDF-FFT Chisel Generator
 
 Interface of the implemented SDF-FFT generator showing inout signals as well as control and status registers is presented in the figure below.
-![Interface of the SDF-FFT Generator](./images/SDFFFTGenerator.svg)
+![Interface of the SDF-FFT Generator](./images/svg/SDFFFTGenerator.svg)
 
 #### Inputs
 
@@ -49,7 +49,7 @@ Decoupled interface is used where .bits is output IQ sample (in frequency or tim
 #### FSM and Control Logic
 
 Simple state machine which controls data flow is shown below.
-![FSM](./images/fft_fsm.png)
+![FSM](./images/png/fft_fsm.png)
 
 On the FSM diagram some signals are omitted for clarity but brief explanation of the each state is given below:
 * `sIdle` - reset state and some register initializations are done in this state. System stays in `sIdle` until fire signal (`io.in.ready && io.in.valid`) from input side doesn't assert.
@@ -114,8 +114,8 @@ Besides main source code, various tests for sdf generator are provided in this r
 * `Radix22Spec` - test some implementation specific parameters such as pipeline registers complex multipliers, all that for various fft sizes and both decimation types.
 * `Radix22RandomSpec` - test sdf-fft generator with random input test signals. Design is tested for two backends `verilator` and `treadle`.
 * `Radix22SQNRSpec` - demonstrate how changing fft parameters affect signal to noise quantization ratio (SQNR) in the case of the radix 2<sup>2</sup> generator instance. Analysis is applied on a large random data set. Results of the analysis are presented on diagrams below.
-![Data width effect on SQNR](./images/SQNRdataWidth.png)
-![Rounding mode effect on SQNR](./images/SQNRroundings.png)
+![Data width effect on SQNR](./images/png/SQNRdataWidth.png)
+![Rounding mode effect on SQNR](./images/png/SQNRroundings.png)
 * `Radix22RunTimeSpec` - run testers for run time configurable fft size for the both `SDFChainRadix22` and `SDFChainRadix22RunTime` modules.
 * `SDFFFTTester` - contains useful test functions for testing sdf-fft generator. Common tester is used for radix 2 and radix 2<sup>2</sup> design.
 * `SDFFFTRunTimeTester` - contains test function which tests run time configurable fft size. Common tester is used for radix 2, radix 2<sup>2</sup> and radix 2<sup>2</sup> module which provides full run time configurability.

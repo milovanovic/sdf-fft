@@ -8,21 +8,21 @@ CHIPYARD_VERSION="1.9.1"
 DSPTOOLS_COMMIT=5b1e733
 ROCKET_COMMIT=25e2c63
 FIRESIM_COMMIT=3ae68ec
-ROCKET_DSP_COMMIT=886b6d0  #ef552e7 #milovanovic/rocket-dsp-utils # original rocket-dsp-utils is 4f04a3c
+ROCKET_DSP_COMMIT=fe641d1
+CDE_COMMIT=384c06b
 
 git submodule add https://github.com/ucb-bar/dsptools.git tools/dsptools
 cd tools/dsptools
 git checkout $DSPTOOLS_COMMIT
 cd ../..
-#git submodule add https://github.com/ucb-bar/rocket-dsp-utils.git tools/rocket-dsp-utils
-git submodule add  https://github.com/milovanovic/rocket-dsp-utils.git tools/rocket-dsp-utils
+git submodule add https://github.com/ucb-bar/rocket-dsp-utils.git tools/rocket-dsp-utils
 cd tools/rocket-dsp-utils
 git checkout $ROCKET_DSP_COMMIT
 cd ../..
 
 git submodule add https://github.com/chipsalliance/cde.git tools/cde
 cd tools/cde
-git checkout 384c06b
+git checkout $CDE_COMMIT
 cd ../..
 
 git submodule add https://github.com/chipsalliance/rocket-chip.git generators/rocket-chip
@@ -41,7 +41,7 @@ cd ../..
 mv build.txt build.sbt
 
 if [ -d project ]; then
-   echo "Directory project already exists."
+   echo "Directory project already exists"
 else
    mkdir project
 fi

@@ -104,7 +104,7 @@ class WithSDFFFT(fftParams: FFTParams[FixedPoint], fftAddress: AddressSet = Addr
     })
 
 case object SDFFFTAdapter {
-  def tieoff(fft: Option[SDFFFTIO[AXI4StreamBundle]]) {
+  def tieoff(fft: Option[SDFFFTIO[AXI4StreamBundle]]): Unit = {
     fft.foreach { s =>
       s.in.valid := false.B
       s.in.bits := DontCare
@@ -112,5 +112,5 @@ case object SDFFFTAdapter {
     }
   }
 
-  def tieoff(fft: SDFFFTIO[AXI4StreamBundle]) { tieoff(Some(fft)) }
+  def tieoff(fft: SDFFFTIO[AXI4StreamBundle]): Unit = { tieoff(Some(fft)) }
 }
