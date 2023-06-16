@@ -4,6 +4,7 @@ generated-rtl/
 *.fir
 *.v
 *.conf
+!*scalafmt.conf
 *.json
 *.zip
 
