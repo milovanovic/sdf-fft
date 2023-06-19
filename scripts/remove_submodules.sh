@@ -21,5 +21,5 @@ git rm -f tools/cde/
 git restore --staged .gitmodules
 rm .gitmodules
 
-mv build.sbt build.txt
+mv build.sbt build.sbt.ignore
 rm project/plugins.sbt

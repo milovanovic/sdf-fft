@@ -38,7 +38,7 @@ git submodule update --init --recursive
 git config --local --unset-all submodule.sims/firesim.update
 git submodule update --init sims/firesim
 cd ../..
-mv build.txt build.sbt
+mv build.sbt.ignore build.sbt
 
 if [ -d project ]; then
    echo "Directory project already exists"
