@@ -39,13 +39,12 @@ trait CanHavePeripherySDFFFT { this: BaseSubsystem =>
           )
         )
         // Connect mem
-        pbus.toSlave(Some(portName)) {
-          // toVariableWidthSlave doesn't use holdFirstDeny, which TLToAXI4() needs
+        pbus.coupleTo("fft") {
           fft.mem.get := AXI4Buffer() := TLToAXI4() := TLFragmenter(
             pbus.beatBytes,
             pbus.blockBytes,
             holdFirstDeny = true
-          )
+          ) := _
         }
         // return
         Some(fft)
@@ -59,7 +58,7 @@ trait CanHavePeripherySDFFFT { this: BaseSubsystem =>
           )
         )
         // Connect mem
-        pbus.toVariableWidthSlave(Some(portName)) { fft.mem.get }
+        pbus.coupleTo("fft") { fft.mem.get := TLFragmenter(pbus.beatBytes, pbus.blockBytes) := _ }
         // return
         Some(fft)
       }
