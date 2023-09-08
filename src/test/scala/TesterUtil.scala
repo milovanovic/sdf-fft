@@ -4,15 +4,14 @@ package fft
 
 import chisel3._
 import chisel3.util.log2Up
-import dsptools.DspTester
-import dsptools.numbers._
 import breeze.math.Complex
-import breeze.linalg._
+import chiseltest.iotesters.PeekPokeTester
+import dsptools.misc.PeekPokeDspExtensions
 
 /**
   * Contains useful helper functions for testers
   */
-trait HasTesterUtil[T <: Module] extends DspTester[T] {
+trait HasTesterUtil[T <: Module] extends PeekPokeTester[T] {
 
   /**
     * Waits to see if a signal is asserted. If more than the allowed number
@@ -21,7 +20,7 @@ trait HasTesterUtil[T <: Module] extends DspTester[T] {
   def wait_for_assert(signal: Bool, maxCyclesWait: Int) {
     require(maxCyclesWait > 0, "maximum number of cycles to wait must be positive")
     var cyclesWaiting = 0
-    while (!peek(signal) && cyclesWaiting < maxCyclesWait) {
+    while (peek(signal) == 0 && cyclesWaiting < maxCyclesWait) {
       cyclesWaiting += 1
       if (cyclesWaiting >= maxCyclesWait) { expect(false, "waited for input too long") }
       step(1)

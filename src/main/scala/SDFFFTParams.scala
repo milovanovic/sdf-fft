@@ -2,12 +2,12 @@
 
 package fft
 
-import chisel3._
-import chisel3.experimental._
+import chisel3.experimental.{FixedPoint => _, _}
 import chisel3.util._
-
+import chisel3.{fromDoubleToLiteral => _, fromIntToBinaryPoint => _, _}
 import dsptools._
 import dsptools.numbers._
+import fixedpoint._
 
 /**
   * Base class for FFT parameters

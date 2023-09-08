@@ -2,9 +2,9 @@
 
 package fft
 
-import chisel3._
+import chisel3.{fromDoubleToLiteral => _, fromIntToBinaryPoint => _, _}
 import chisel3.util._
-import chisel3.experimental.FixedPoint
+import fixedpoint._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 import dsptools._
