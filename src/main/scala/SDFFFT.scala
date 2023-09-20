@@ -7,9 +7,8 @@ import chisel3.util._
 import fixedpoint._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
-import dsptools._
 import dsptools.numbers._
-import scala.math.pow
+import utils.dsp.zeropadder._
 
 //import firrtl.transforms.{Flatten, FlattenAnnotation, NoDedupAnnotation}
 //import chisel3.util.experimental.{FlattenInstance, InlineInstance}
@@ -30,9 +29,14 @@ class FFTIO[T <: Data: Ring](params: FFTParams[T]) extends Bundle {
   val lastOut = Output(Bool())
   val lastIn = Input(Bool())
   // control registers
-  val fftSize = if (params.runTime) Some(Input(UInt((log2Up(params.numPoints)).W))) else None
+  val fftSize = if (params.runTime) Some(Input(UInt(log2Up(params.numPoints).W))) else None
   val keepMSBorLSBReg = if (params.keepMSBorLSBReg) Some(Input(Vec(log2Up(params.numPoints), Bool()))) else None
   val fftDirReg = if (params.fftDirReg) Some(Input(Bool())) else None
+  // control registers that are connected to zeropadder
+  val packetSizeStart = if (params.zeroPadderParams.isDefined) Some(Input(UInt(log2Up(params.numPoints).W))) else None
+  val numberOfPackets =
+    if (params.zeroPadderParams.isDefined) Some(Input(UInt(log2Up(params.zeroPadderParams.get.packetSizeStart).W)))
+    else None
   //val flushDataOut = Input(Bool())
 
   // status registers
@@ -69,90 +73,130 @@ class SDFFFT[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) ex
     case "2" => {
       val fft = Module(new SDFChainRadix2(params))
       if (params.useBitReverse) {
-        if (params.decimType == DIFDecimType) {
-          val paramsBR = BitReversePingPongParams(
-            proto = params.protoIQstages.last,
-            pingPongSize = params.numPoints,
-            adjustableSize = params.runTime,
-            bitReverseDir = true,
-            singlePortSRAM = params.singlePortSRAM
-          )
-          val bitReversal = Module(new BitReversePingPong(paramsBR))
-          if (params.runTime) {
-            bitReversal.io.size.get := 1.U << io.fftSize.get
-          }
-          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
-            fft.io.in.bits.real := io.in.bits.real //* window(addrWin)
-            fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin)
+        val paramsBR = BitReversePingPongParams(
+          proto = params.protoIQstages.last,
+          pingPongSize = params.numPoints,
+          adjustableSize = params.runTime,
+          bitReverseDir = true,
+          singlePortSRAM = params.singlePortSRAM
+        )
+        val bitReversal = Module(new BitReversePingPong(paramsBR))
+        if (params.runTime) {
+          bitReversal.io.size.get := 1.U << io.fftSize.get
+        }
+        if (params.zeroPadderParams.isDefined) {
+          val zeropadder = Module(new ZeroPadderNative(params.zeroPadderParams.get))
+          // Connect inputs
+          zeropadder.io.in.valid := io.in.valid
+          zeropadder.io.packetSizeStart := io.packetSizeStart.get
+          zeropadder.io.packetSizeEnd := io.fftSize.get //OrElse(params.numPoints.U)
+          zeropadder.io.numberOfPackets := io.numberOfPackets.get //OrElse(params.zeroPadderParams.get.numberOfPackets.U)
+          zeropadder.io.in.bits := io.in.bits
+          io.in.ready := zeropadder.io.in.ready
+          zeropadder.io.lastIn := io.lastIn
 
-            fft.io.in.valid := io.in.valid
-            io.in.ready := fft.io.in.ready
+          if (params.decimType == DIFDecimType) {
+            fft.io.in.bits := zeropadder.io.out.bits
+            fft.io.in.valid := zeropadder.io.out.valid
+            zeropadder.io.out.ready := fft.io.in.ready
+            io.in.ready := zeropadder.io.in.ready
             io.out <> bitReversal.io.out
-          }.otherwise {
-            fft.io.in <> io.in
-            io.out.bits := bitReversal.io.out.bits
 
-            io.out.valid := bitReversal.io.out.valid
-            bitReversal.io.out.ready := io.out.ready
-          }
-          fft.io.lastIn := io.lastIn
-          bitReversal.io.in <> fft.io.out
-          bitReversal.io.lastIn := fft.io.lastOut
-          io.lastOut := bitReversal.io.lastOut
-          dontTouch(io.lastOut)
-        } else {
-          // DIT
-          val paramsBR = BitReversePingPongParams(
-            proto = params.protoIQstages.last,
-            pingPongSize = params.numPoints,
-            adjustableSize = params.runTime,
-            bitReverseDir = false,
-            singlePortSRAM = params.singlePortSRAM
-          )
-          val bitReversal = Module(new BitReversePingPong(paramsBR))
-          if (params.runTime) {
-            bitReversal.io.size.get := 1.U << io.fftSize.get
-          }
-          bitReversal.io.in <> io.in
-          bitReversal.io.lastIn := io.lastIn
+            fft.io.lastIn := zeropadder.io.lastOut
+            bitReversal.io.in <> fft.io.out
+            bitReversal.io.lastIn := fft.io.lastOut
+            io.lastOut := bitReversal.io.lastOut
+            dontTouch(io.lastOut)
+          } else {
+            // DIT
+            zeropadder.io.lastIn := io.lastIn
+            zeropadder.io.in <> io.in
+            zeropadder.io.lastIn := io.lastIn
 
-          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
-            fft.io.in.bits.real := bitReversal.io.out.bits.real //* window(addrWin)
-            fft.io.in.bits.imag := bitReversal.io.out.bits.imag //* window(addrWin)
-            /** **************************
-              */
-            fft.io.in.valid := bitReversal.io.out.valid
-            bitReversal.io.out.ready := fft.io.in.ready
-            io.out <> fft.io.out
-          }.otherwise {
+            bitReversal.io.in <> zeropadder.io.out
+            bitReversal.io.lastIn := zeropadder.io.lastOut
             fft.io.in <> bitReversal.io.out
             io.out.bits := fft.io.out.bits
-
-            /** **************************
-              */
             io.out.valid := fft.io.out.valid
             fft.io.out.ready := io.out.ready
+            fft.io.lastIn := bitReversal.io.lastOut
+            io.lastOut := fft.io.lastOut
           }
-          fft.io.lastIn := bitReversal.io.lastOut
-          io.lastOut := fft.io.lastOut
+        } else {
+          if (params.decimType == DIFDecimType) {
+            when(io.fftDirReg.getOrElse(params.fftDir.B)) {
+              fft.io.in.bits.real := io.in.bits.real //* window(addrWin)
+              fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin)
+
+              fft.io.in.valid := io.in.valid
+              io.in.ready := fft.io.in.ready
+              io.out <> bitReversal.io.out
+            }.otherwise {
+              fft.io.in <> io.in
+              io.out.bits := bitReversal.io.out.bits
+
+              io.out.valid := bitReversal.io.out.valid
+              bitReversal.io.out.ready := io.out.ready
+            }
+            fft.io.lastIn := io.lastIn
+            bitReversal.io.in <> fft.io.out
+            bitReversal.io.lastIn := fft.io.lastOut
+            io.lastOut := bitReversal.io.lastOut
+            dontTouch(io.lastOut)
+          } else {
+            bitReversal.io.in <> io.in
+            bitReversal.io.lastIn := io.lastIn
+            when(io.fftDirReg.getOrElse(params.fftDir.B)) {
+              fft.io.in.bits.real := bitReversal.io.out.bits.real //* window(addrWin)
+              fft.io.in.bits.imag := bitReversal.io.out.bits.imag //* window(addrWin)
+              fft.io.in.valid := bitReversal.io.out.valid
+              bitReversal.io.out.ready := fft.io.in.ready
+              io.out <> fft.io.out
+            }.otherwise {
+              fft.io.in <> bitReversal.io.out
+              io.out.bits := fft.io.out.bits
+              io.out.valid := fft.io.out.valid
+              fft.io.out.ready := io.out.ready
+            }
+            fft.io.lastIn := bitReversal.io.lastOut
+            io.lastOut := fft.io.lastOut
+          }
         }
       } else {
         // cntWin for dif natural, dit bit reversed
-        // check fft/ifft
-        when(io.fftDirReg.getOrElse(params.fftDir.B)) {
-          fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
-          fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
-          fft.io.in.valid := io.in.valid
-          io.in.ready := fft.io.in.ready
-          io.out <> fft.io.out
-        }.otherwise {
-          fft.io.in <> io.in
+        if (params.zeroPadderParams.isDefined && params.decimType == DIFDecimType) {
+          val zeropadder = Module(new ZeroPadderNative(params.zeroPadderParams.get))
+          // Connect inputs
+          zeropadder.io.in.valid := io.in.valid
+          zeropadder.io.packetSizeStart := io.packetSizeStart.get
+          zeropadder.io.packetSizeEnd := io.fftSize.get //OrElse(params.numPoints.U)
+          zeropadder.io.numberOfPackets := io.numberOfPackets.get //OrElse(params.zeroPadderParams.get.numberOfPackets.U)
+          zeropadder.io.in.bits := io.in.bits
+          io.in.ready := zeropadder.io.in.ready
+          zeropadder.io.lastIn := io.lastIn
+          fft.io.in <> zeropadder.io.in
           io.out.bits := fft.io.out.bits
           io.out.valid := fft.io.out.valid
           fft.io.out.ready := io.out.ready
+
+          fft.io.lastIn := zeropadder.io.lastIn
+          io.lastOut := fft.io.lastOut
+        } else {
+          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
+            fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
+            fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
+            fft.io.in.valid := io.in.valid
+            io.in.ready := fft.io.in.ready
+            io.out <> fft.io.out
+          }.otherwise {
+            fft.io.in <> io.in
+            io.out.bits := fft.io.out.bits
+            io.out.valid := fft.io.out.valid
+            fft.io.out.ready := io.out.ready
+          }
+          fft.io.lastIn := io.lastIn
+          io.lastOut := fft.io.lastOut
         }
-        fft.io.lastIn := io.lastIn
-        io.lastOut := fft.io.lastOut
       }
       io.busy := fft.io.busy
       if (params.runTime) {
@@ -175,86 +219,134 @@ class SDFFFT[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) ex
           Module(
             new SDFChainRadix22(params)
           ) //Module(new SDFChainRadix22RunTime(params)  with FlattenInstance) else Module(new SDFChainRadix22(params) with FlattenInstance)
-      if (params.useBitReverse) {
-        if (params.decimType == DIFDecimType) {
-          val paramsBR = BitReversePingPongParams(
-            proto = params.protoIQstages.last,
-            pingPongSize = params.numPoints,
-            adjustableSize = params.runTime,
-            bitReverseDir = true,
-            singlePortSRAM = params.singlePortSRAM
-          )
-          val bitReversal = Module(new BitReversePingPong(paramsBR))
-          if (params.runTime) {
-            bitReversal.io.size.get := 1.U << io.fftSize.get
-          }
-          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
-            fft.io.in.bits.real := io.in.bits.real // * window(addrWin)
-            fft.io.in.bits.imag := io.in.bits.imag // * window(addrWin)
-            fft.io.in.valid := io.in.valid
-            io.in.ready := fft.io.in.ready
-            io.out <> bitReversal.io.out
-          }.otherwise {
-            fft.io.in <> io.in
-            io.out.bits := bitReversal.io.out.bits
-            io.out.valid := bitReversal.io.out.valid
-            bitReversal.io.out.ready := io.out.ready
-          }
-          fft.io.lastIn := io.lastIn
-          bitReversal.io.in <> fft.io.out
-          bitReversal.io.lastIn := fft.io.lastOut
-          io.lastOut := bitReversal.io.lastOut
-        } else {
-          // DIT
-          val paramsBR = BitReversePingPongParams(
-            proto = params.protoIQstages.last,
-            pingPongSize = params.numPoints,
-            adjustableSize = params.runTime,
-            bitReverseDir = false,
-            singlePortSRAM = params.singlePortSRAM
-          )
-          val bitReversal = Module(new BitReversePingPong(paramsBR))
-          if (params.runTime) {
-            bitReversal.io.size.get := 1.U << io.fftSize.get
-          }
-          bitReversal.io.in <> io.in
-          bitReversal.io.lastIn := io.lastIn
 
-          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
-            bitReversal.io.out.ready := fft.io.in.ready
-            fft.io.in.bits.real := bitReversal.io.out.bits.real // * window(addrWin)
-            fft.io.in.bits.imag := bitReversal.io.out.bits.imag // * window(addrWin)
-            fft.io.in.valid := bitReversal.io.out.valid
-            bitReversal.io.out.ready := fft.io.in.ready
-            io.out <> fft.io.out
-          }.otherwise {
+      if (params.useBitReverse) {
+        val paramsBR = BitReversePingPongParams(
+          proto = params.protoIQstages.last,
+          pingPongSize = params.numPoints,
+          adjustableSize = params.runTime,
+          bitReverseDir = true,
+          singlePortSRAM = params.singlePortSRAM
+        )
+        val bitReversal = Module(new BitReversePingPong(paramsBR))
+        if (params.runTime) {
+          bitReversal.io.size.get := 1.U << io.fftSize.get
+        }
+        if (params.zeroPadderParams.isDefined) {
+          val zeropadder = Module(new ZeroPadderNative(params.zeroPadderParams.get))
+          // Connect inputs
+          zeropadder.io.in.valid := io.in.valid
+          zeropadder.io.packetSizeStart := io.packetSizeStart.get
+          zeropadder.io.packetSizeEnd := io.fftSize.get //OrElse(params.numPoints.U)
+          zeropadder.io.numberOfPackets := io.numberOfPackets.get //OrElse(params.zeroPadderParams.get.numberOfPackets.U)
+          zeropadder.io.in.bits := io.in.bits
+          io.in.ready := zeropadder.io.in.ready
+          zeropadder.io.lastIn := io.lastIn
+
+          if (params.decimType == DIFDecimType) {
+            fft.io.in.bits := zeropadder.io.out.bits
+            fft.io.in.valid := zeropadder.io.out.valid
+            zeropadder.io.out.ready := fft.io.in.ready
+            io.in.ready := zeropadder.io.in.ready
+            io.out <> bitReversal.io.out
+
+            fft.io.lastIn := zeropadder.io.lastOut
+            bitReversal.io.in <> fft.io.out
+            bitReversal.io.lastIn := fft.io.lastOut
+            io.lastOut := bitReversal.io.lastOut
+            dontTouch(io.lastOut)
+          } else {
+            // DIT
+            zeropadder.io.lastIn := io.lastIn
+            zeropadder.io.in <> io.in
+            zeropadder.io.lastIn := io.lastIn
+
+            bitReversal.io.in <> zeropadder.io.out
+            bitReversal.io.lastIn := zeropadder.io.lastOut
             fft.io.in <> bitReversal.io.out
             io.out.bits := fft.io.out.bits
             io.out.valid := fft.io.out.valid
             fft.io.out.ready := io.out.ready
+            fft.io.lastIn := bitReversal.io.lastOut
+            io.lastOut := fft.io.lastOut
           }
-          fft.io.lastIn := bitReversal.io.lastOut
-          io.lastOut := fft.io.lastOut
+        } else {
+          if (params.decimType == DIFDecimType) {
+            when(io.fftDirReg.getOrElse(params.fftDir.B)) {
+              fft.io.in.bits.real := io.in.bits.real //* window(addrWin)
+              fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin)
+
+              fft.io.in.valid := io.in.valid
+              io.in.ready := fft.io.in.ready
+              io.out <> bitReversal.io.out
+            }.otherwise {
+              fft.io.in <> io.in
+              io.out.bits := bitReversal.io.out.bits
+
+              io.out.valid := bitReversal.io.out.valid
+              bitReversal.io.out.ready := io.out.ready
+            }
+            fft.io.lastIn := io.lastIn
+            bitReversal.io.in <> fft.io.out
+            bitReversal.io.lastIn := fft.io.lastOut
+            io.lastOut := bitReversal.io.lastOut
+            dontTouch(io.lastOut)
+          } else {
+            bitReversal.io.in <> io.in
+            bitReversal.io.lastIn := io.lastIn
+            when(io.fftDirReg.getOrElse(params.fftDir.B)) {
+              fft.io.in.bits.real := bitReversal.io.out.bits.real //* window(addrWin)
+              fft.io.in.bits.imag := bitReversal.io.out.bits.imag //* window(addrWin)
+              fft.io.in.valid := bitReversal.io.out.valid
+              bitReversal.io.out.ready := fft.io.in.ready
+              io.out <> fft.io.out
+            }.otherwise {
+              fft.io.in <> bitReversal.io.out
+              io.out.bits := fft.io.out.bits
+              io.out.valid := fft.io.out.valid
+              fft.io.out.ready := io.out.ready
+            }
+            fft.io.lastIn := bitReversal.io.lastOut
+            io.lastOut := fft.io.lastOut
+          }
         }
       } else {
-        when(io.fftDirReg.getOrElse(params.fftDir.B)) {
-          fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
-          fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
-          fft.io.in.valid := io.in.valid
-          io.in.ready := fft.io.in.ready
-          io.out <> fft.io.out
-        }.otherwise {
-          fft.io.in <> io.in
+        // cntWin for dif natural, dit bit reversed
+        if (params.zeroPadderParams.isDefined && params.decimType == DIFDecimType) {
+          val zeropadder = Module(new ZeroPadderNative(params.zeroPadderParams.get))
+          // Connect inputs
+          zeropadder.io.in.valid := io.in.valid
+          zeropadder.io.packetSizeStart := io.packetSizeStart.get
+          zeropadder.io.packetSizeEnd := io.fftSize.get //OrElse(params.numPoints.U)
+          zeropadder.io.numberOfPackets := io.numberOfPackets.get //OrElse(params.zeroPadderParams.get.numberOfPackets.U)
+          zeropadder.io.in.bits := io.in.bits
+          io.in.ready := zeropadder.io.in.ready
+          zeropadder.io.lastIn := io.lastIn
+          fft.io.in <> zeropadder.io.in
           io.out.bits := fft.io.out.bits
           io.out.valid := fft.io.out.valid
           fft.io.out.ready := io.out.ready
-        }
-        fft.io.lastIn := io.lastIn
-        io.lastOut := fft.io.lastOut
-      }
 
+          fft.io.lastIn := zeropadder.io.lastIn
+          io.lastOut := fft.io.lastOut
+        } else {
+          when(io.fftDirReg.getOrElse(params.fftDir.B)) {
+            fft.io.in.bits.real := io.in.bits.real //* window(addrWin))
+            fft.io.in.bits.imag := io.in.bits.imag //* window(addrWin))
+            fft.io.in.valid := io.in.valid
+            io.in.ready := fft.io.in.ready
+            io.out <> fft.io.out
+          }.otherwise {
+            fft.io.in <> io.in
+            io.out.bits := fft.io.out.bits
+            io.out.valid := fft.io.out.valid
+            fft.io.out.ready := io.out.ready
+          }
+          fft.io.lastIn := io.lastIn
+          io.lastOut := fft.io.lastOut
+        }
+      }
       io.busy := fft.io.busy
-      // optional ports/registers
       if (params.runTime) {
         fft.io.fftSize.get := io.fftSize.get
       }
