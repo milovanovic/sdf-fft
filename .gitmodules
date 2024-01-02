@@ -1,0 +1,12 @@
+[submodule "tools/dsptools"]
+	path = tools/dsptools
+	url = https://github.com/ucb-bar/dsptools.git
+[submodule "tools/rocket-dsp-utils"]
+	path = tools/rocket-dsp-utils
+	url = https://github.com/ucb-bar/rocket-dsp-utils.git
+[submodule "tools/cde"]
+	path = tools/cde
+	url = https://github.com/chipsalliance/cde.git
+[submodule "generators/rocket-chip"]
+	path = generators/rocket-chip
+	url = https://github.com/chipsalliance/rocket-chip.git
