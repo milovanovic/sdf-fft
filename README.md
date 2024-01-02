@@ -1,13 +1,12 @@
 # SDF-FFT Design Generator
-[![Build](https://github.com/milovanovic/sdf-fft/actions/workflows/test.yml/badge.svg)](https://github.com/milovanovic/sdf-fft/actions/workflows/test.yml)
-
 The SDF-FFT Generator is a highly parametrizable Single-Path-Delay-Feedback (SDF) Fast Fourier Transform (FFT) hardware accelerator.
 
 
 ## Prerequisites
 
 The following software packages should be installed prior to running this project:
-* [sbt](http://www.scala-sbt.org)
+* [sbt](http://www.scala-sbt.org) or
+* [mill](https://mill-build.com)
 * [Verilator](http://www.veripool.org/wiki/verilator)
 
 ## Setup
@@ -20,15 +19,10 @@ Proposed design generator is intended to be used inside [chipyard](https://githu
 *  Compile code, generate verilog or run tests.
 
 ```
-git clone https://github.com/milovanovic/sdf-fft.git
+git clone --recurse-submodules https://github.com/milovanovic/sdf-fft.git
 cd sdf-fft
-./scripts/init_submodules_and_build_sbt.sh
-sbt test
-```
-
-#### Note
-The shell script `init_submodules_and_build_sbt.sh`, initializes all tools and generators required to run this project. Besides that, it initializes `bulid.sbt` with all correctly defined dependencies. Versions of tools and generators correspond to chipyard 1.9.1 release. The user can replace versions by changing corresponding checkout commits inside the same script.
-The shell script `remove_submodules.sh` runs commands that are the inverse of those in `init_submodules_and_build_sbt.sh`.
+sbt test or ./mill sdf_fft.test
+``
 
 ## Documentation
 
