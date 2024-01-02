@@ -14,3 +14,4 @@ verilog/
 
 .metals/
 .scala-build/
+out/
