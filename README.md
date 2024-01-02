@@ -13,16 +13,15 @@ The following software packages should be installed prior to running this projec
 
 Proposed design generator is intended to be used inside [chipyard](https://github.com/ucb-bar/chipyard) environment as one of the generators located inside `generators/dsp-blocks`. Anyhow, if you want to use this repository standalone then follow instructions below:
 
-*  Clone this repository.
+*  Clone this repository (with submodules).
 *  Switch directory.
-*  Initialize all tools and submodules.
 *  Compile code, generate verilog or run tests.
 
 ```
 git clone --recurse-submodules https://github.com/milovanovic/sdf-fft.git
 cd sdf-fft
 sbt test or ./mill sdf_fft.test
-``
+```
 
 ## Documentation
 
