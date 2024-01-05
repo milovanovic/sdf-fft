@@ -5,7 +5,6 @@ package fft
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.FixedPoint
-import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 
 import dsptools._
 import dsptools.numbers._
@@ -15,7 +14,7 @@ import scala.math.{pow, Pi}
 import dspblocks.CounterWithReset
 import craft.ShiftRegisterMem
 
-class SDFChainRadix2[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) extends Module with HasIO {
+class SDFChainRadix2[T <: Data: Real: BinaryRepresentation](val params: FFTParams[T]) extends Module {
   params.checkNumPointsPow2()
   require(Seq(DITDecimType, DIFDecimType).contains(params.decimType), s"""Decimation type must either be dit or dif""")
   val io = IO(FFTIO(params))
@@ -150,8 +149,7 @@ class SDFChainRadix2[T <: Data: Real: BinaryRepresentation](val params: FFTParam
     case ((delayLog2, delay), ind) => {
       val stageparams = params.copy(protoIQ = params.protoIQstages(ind))
       val useGrow = if (stageparams.expandLogic(ind) == 1) true else false
-      val stage =
-        Module(new SDFStageRadix2(stageparams, delay = delay, useGrow, params.keepMSBorLSB(ind), params.singlePortSRAM))
+      val stage = Module(new SDFStageRadix2(stageparams, delay = delay, useGrow, params.keepMSBorLSB(ind)))
       if (params.keepMSBorLSBReg) {
         stage.io.scale.get := scaleBflyReg(ind)
       }
@@ -182,8 +180,8 @@ class SDFChainRadix2[T <: Data: Real: BinaryRepresentation](val params: FFTParam
       enableVector(currStage) := stageEn //collects all enable signals
       cntr_wires(currStage) := stageCnt //collects all shifted counter values
       (
-        ShiftRegisterWithReset(stageEn, outputLatency, false.B, state === sIdle, true.B),
-        ShiftRegisterWithReset(stageCnt, outputLatency, 0.U, state === sIdle, true.B)
+        ShiftRegisterWithReset(stageEn, outputLatency, resetData = false.B, reset = state === sIdle, en = true.B),
+        ShiftRegisterWithReset(stageCnt, outputLatency, resetData = 0.U, reset = state === sIdle, en = true.B)
       )
     }
   }
@@ -246,7 +244,13 @@ class SDFChainRadix2[T <: Data: Real: BinaryRepresentation](val params: FFTParam
   val output = if (params.decimType == DIFDecimType) outputWires.last else outputWires(regNumStages - 1.U)
   val latency = (params.numAddPipes + complexMulLatency) * log2Up(params.numPoints)
 
-  val outValid = ShiftRegisterWithReset(validOutBeforePipes, outputLatency, false.B, state === sIdle, true.B)
+  val outValid = ShiftRegisterWithReset(
+    validOutBeforePipes,
+    outputLatency,
+    resetData = false.B,
+    reset = state_next === sIdle,
+    en = true.B
+  )
 
   val outQueue = Module(
     new Queue(chiselTypeOf(sdf_stages.last.io.out), entries = latency + 1, pipe = true, flow = true)
@@ -257,12 +261,7 @@ class SDFChainRadix2[T <: Data: Real: BinaryRepresentation](val params: FFTParam
   val scalar =
     if (params.expandLogic.sum == 0 && !params.keepMSBorLSBReg) ConvertableTo[T].fromDouble(1.0)
     else ConvertableTo[T].fromDouble(1.0 / params.numPoints.toDouble)
-  io.in.ready := ShiftRegister(
-    (~initialOutDone),
-    outputLatency,
-    false.B,
-    true.B
-  ) || (io.out.ready && (state =/= sFlush))
+  io.in.ready := (~initialInDone) || (io.out.ready && (state =/= sFlush))
 
   if (latency == 0) {
     when(fftOrifft === true.B) {
@@ -301,19 +300,16 @@ class SDFStageRadix2IO[T <: Data: Ring](params: FFTParams[T]) extends Bundle {
   // control signals
   val cntr = Input(UInt(log2Up(params.numPoints).W))
   val en = Input(Bool())
-
-  //override def cloneType: this.type = SDFStageRadix2IO(params).asInstanceOf[this.type]
 }
 object SDFStageRadix2IO {
   def apply[T <: Data: Ring](params: FFTParams[T]): SDFStageRadix2IO[T] = new SDFStageRadix2IO(params)
 }
 
 class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
-  val params:         FFTParams[T],
-  val delay:          Int,
-  val useGrow:        Boolean,
-  val keepMSBOrLSB:   Boolean,
-  val singlePortSRAM: Boolean = false)
+  val params:       FFTParams[T],
+  val delay:        Int,
+  val useGrow:      Boolean,
+  val keepMSBOrLSB: Boolean)
     extends Module {
   params.checkNumPointsPow2()
   require(isPow2(delay) && delay >= 1, "delay must be a power of 2 greater than or equal to 1")
@@ -331,7 +327,7 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
   val totalDataWidth = params.protoIQ.real.getWidth * 2
   val twiddles_rom = Wire(Vec(delay, params.protoTwiddle.cloneType))
   val tw =
-    if (params.decimType == DIFDecimType) ShiftRegister(twiddles_rom(io.cntr), params.numAddPipes, true.B)
+    if (params.decimType == DIFDecimType) ShiftRegister(twiddles_rom(io.cntr), params.numAddPipes, en = true.B)
     else twiddles_rom(io.cntr)
 
   DspContext.withTrimType(Convergent) {
@@ -365,8 +361,8 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
       ) { io.in.context_*(tw) }
       inpOuttw := DspContext.withTrimType(params.trimType) { mulres.trimBinary(bpos) }
     }
-    inpOut := ShiftRegister(io.in, complexMulLatency, true.B)
-    when(ShiftRegister(io.cntr > delay, complexMulLatency, true.B)) {
+    inpOut := ShiftRegister(io.in, complexMulLatency, en = true.B)
+    when(ShiftRegister(io.cntr > delay, complexMulLatency, en = true.B)) {
       inp := inpOuttw
     }.otherwise {
       inp := inpOut
@@ -374,7 +370,7 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
     io.out := out
   } else {
     inp := io.in
-    val multipleSignal = ShiftRegister(io.cntr < delay.U && io.cntr =/= 0.U, params.numAddPipes, true.B)
+    val multipleSignal = ShiftRegister(io.cntr < delay.U && io.cntr =/= 0.U, params.numAddPipes, en = true.B)
     val ioOuttw = Wire(io.out.cloneType)
     val ioOut = Wire(io.out.cloneType)
 
@@ -389,8 +385,8 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
       ) { out.context_*(tw) }
       ioOuttw := DspContext.withTrimType(params.trimType) { mulres.trimBinary(bpos) }
     }
-    ioOut := ShiftRegister(out, complexMulLatency, true.B)
-    when(ShiftRegister(multipleSignal, complexMulLatency, true.B)) {
+    ioOut := ShiftRegister(out, complexMulLatency, en = true.B)
+    when(ShiftRegister(multipleSignal, complexMulLatency, en = true.B)) {
       io.out := ioOuttw
     }.otherwise {
       io.out := ioOut
@@ -403,7 +399,7 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
   if (params.decimType == DIFDecimType) {
     load_input := io.cntr < delay.U
   } else {
-    load_input := ShiftRegister(io.cntr < delay.U, complexMulLatency, false.B, true.B)
+    load_input := ShiftRegister(io.cntr < delay.U, complexMulLatency, resetData = false.B, en = true.B)
   }
   val shift_in = Wire(inp.cloneType)
   shift_in := Mux(load_input, inp, butterfly_outputs(1))
@@ -411,41 +407,25 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
 
   if (params.decimType == DIFDecimType) {
     if (params.minSRAMdepth < delay) {
-      shift_out.real := ShiftRegisterMem(
-        shift_in.real,
+      shift_out := ShiftRegisterMem(
+        shift_in,
         delay,
-        io.en,
-        use_sp_mem = singlePortSRAM,
-        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_real" + s"_mem"
-      )
-      shift_out.imag := ShiftRegisterMem(
-        shift_in.imag,
-        delay,
-        io.en,
-        use_sp_mem = singlePortSRAM,
-        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_imag" + s"_mem"
+        en = io.en,
+        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem"
       )
     } else {
-      shift_out := ShiftRegister(shift_in, delay, io.en)
+      shift_out := ShiftRegister(shift_in, delay, en = io.en)
     }
   } else {
     if (params.minSRAMdepth < delay) {
-      shift_out.real := ShiftRegisterMem(
-        shift_in.real,
+      shift_out := ShiftRegisterMem(
+        shift_in,
         delay,
-        ShiftRegister(io.en, complexMulLatency, true.B),
-        use_sp_mem = singlePortSRAM,
-        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_real" + s"_mem"
-      )
-      shift_out.imag := ShiftRegisterMem(
-        shift_in.imag,
-        delay,
-        ShiftRegister(io.en, complexMulLatency, true.B),
-        use_sp_mem = singlePortSRAM,
-        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_imag" + s"_mem"
+        en = ShiftRegister(io.en, complexMulLatency, true.B),
+        name = "SRAM" + "_depth_" + delay.toString + "_width_" + totalDataWidth.toString + s"_mem"
       )
     } else {
-      shift_out := ShiftRegister(shift_in, delay, ShiftRegister(io.en, complexMulLatency, true.B))
+      shift_out := ShiftRegister(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
     }
   }
   //val shift_out = if (params.decimType == DIFDecimType) ShiftRegisterMem(shift_in, delay, en = io.en) else ShiftRegisterMem(shift_in, delay, en = ShiftRegister(io.en, complexMulLatency, true.B))
@@ -495,20 +475,22 @@ class SDFStageRadix2[T <: Data: Real: BinaryRepresentation](
   if (params.overflowReg) {
     io.overflow.get := overflow
   }
-  val feedback = ShiftRegister(shift_out, params.numAddPipes, true.B)
-  val butt_out_0 = ShiftRegister(butterfly_outputs(0), params.numAddPipes, true.B)
+  val feedback = ShiftRegister(shift_out, params.numAddPipes, en = true.B)
+  val butt_out_0 = ShiftRegister(butterfly_outputs(0), params.numAddPipes, en = true.B)
   val load_output =
-    if (params.decimType == DIFDecimType) ShiftRegister(load_input, params.numAddPipes, false.B, true.B)
-    else ShiftRegister(io.cntr < delay.U, params.numAddPipes + complexMulLatency, false.B, true.B)
+    if (params.decimType == DIFDecimType)
+      ShiftRegister(load_input, params.numAddPipes, resetData = false.B, en = true.B)
+    else ShiftRegister(io.cntr < delay.U, params.numAddPipes + complexMulLatency, resetData = false.B, en = true.B)
 
   out := Mux(load_output, feedback, butt_out_0)
 }
 
-object SDFChainRadix2SimpleApp extends App {
-  val params = FFTParams.fixed(
+/*object SDFChainRadix2SimpleApp extends App
+{
+  val params = FFTParams.fixed (
     dataWidth = 16,
     twiddleWidth = 16,
-    numPoints = 8,
+    numPoints = 8 ,
     decimType = DITDecimType,
     numAddPipes = 1,
     numMulPipes = 1,
@@ -519,9 +501,5 @@ object SDFChainRadix2SimpleApp extends App {
     keepMSBorLSB = Array.fill(log2Up(8))(true),
     binPoint = 0
   )
-
-  (new ChiselStage).execute(
-    Array("--target-dir", "verilog/SDFChainRadix2Simple"),
-    Seq(ChiselGeneratorAnnotation(() => new SDFChainRadix2(params)))
-  )
-}
+  chisel3.Driver.execute(args,()=>new SDFChainRadix2(params))
+}*/
