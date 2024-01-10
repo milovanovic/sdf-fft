@@ -11,3 +11,8 @@ generated-rtl/
 target/
 project/
 verilog/
+
+.metals/
+.scala-build/
+out/
+mill

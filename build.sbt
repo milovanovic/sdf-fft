@@ -84,7 +84,7 @@ lazy val hardfloat  = (project in rocketChipDir / "hardfloat")
     )
   )
 
-lazy val rocketMacros  = (project in rocketChipDir / "macros")
+lazy val `rocket-macros` = (project in rocketChipDir / "macros")
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
@@ -97,7 +97,7 @@ lazy val rocketMacros  = (project in rocketChipDir / "macros")
 scalafmtOnCompile := true
 
 lazy val rocketchip = freshProject("rocketchip", rocketChipDir)
-  .dependsOn(hardfloat, rocketMacros, cde)
+  .dependsOn(hardfloat, `rocket-macros`, cde)
   .settings(commonSettings)
   .settings(chiselSettings)
   .settings(
