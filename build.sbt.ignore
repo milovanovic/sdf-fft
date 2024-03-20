@@ -1,10 +1,11 @@
 import Tests._
 
-lazy val sdf_fft = Project("fft", file("."))
-  .dependsOn(rocketchip, `rocket-dsp-utils`)
+lazy val dspblocks = (project in file("."))
+  .dependsOn(`rocket-dsp-utils`)
   .settings(chiselSettings)
   .settings(commonSettings)
   .settings(libraryDependencies ++= rocketLibDeps.value)
+  .settings(libraryDependencies += "com.github.haifengl" %% "smile-scala" % "3.0.1")
 
 lazy val commonSettings = Seq(
   organization := "edu.berkeley.cs",
@@ -76,7 +77,7 @@ lazy val chiselSettings = Seq(
   addCompilerPlugin(("edu.berkeley.cs" % "chisel3-plugin" % chiselVersion).cross(CrossVersion.full))
 )
 
-scalafmtOnCompile := true
+ scalafmtOnCompile := true
 // Subproject definitions begin
 
 // -- Rocket Chip --
@@ -84,7 +85,7 @@ scalafmtOnCompile := true
 // Rocket-chip dependencies (subsumes making RC a RootProject)
 lazy val hardfloat = freshProject("hardfloat", rocketChipDir / "hardfloat")
   .settings(chiselSettings)
- // .dependsOn(midasTargetUtils)
+  // .dependsOn(midasTargetUtils)
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
@@ -115,7 +116,8 @@ lazy val rocketchip = freshProject("rocketchip", rocketChipDir)
   .settings( // Settings for scalafix
     //  semanticdbEnabled := true,
     //   semanticdbVersion := scalafixSemanticdb.revision,
-    scalacOptions += "-Ywarn-unused")
+    scalacOptions += "-Ywarn-unused"
+  )
 
 lazy val rocketLibDeps = (rocketchip / Keys.libraryDependencies)
 

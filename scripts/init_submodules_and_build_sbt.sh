@@ -40,6 +40,13 @@ git submodule update --init sims/firesim
 cd ../..
 mv build.sbt.ignore build.sbt
 
+#hack
+cd tools/dsptools
+git submodule update --init
+cd fixedpoint
+git switch tmp
+cd ../../..
+
 if [ -d project ]; then
    echo "Directory project already exists"
 else
