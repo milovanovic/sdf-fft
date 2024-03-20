@@ -160,7 +160,7 @@ If you are using SDF-FFT generator for research, please cite it by the following
       doi={10.1109/MIEL.2019.8889581}}
 
 
-<!--- ## Generate verilog
+## Generate verilog
 
 To generate verilog code for instances of interest, run `make gen_all_single_file` (all modules are inside one verilog file) or `make gen_all_multiple_files` (each module is inside their own verilog file) in the base directory. Verilog files are generated inside the `generated-rtl` directory.
 
@@ -173,4 +173,19 @@ The sub-directory name is always:
 `sdffft_size_[numPoints]_width_[word_size]_bitreverse_[useBitReverse]`
 
 When the `useBitReverse` parameter is set to 1, additional SRAM memories are used in the design, and it is expected that the total area will increase.
--->
+
+
+## Verilog Code Generation Example
+
+To generate Verilog code for specific SDF-FFT instances, execute `make gen_all_single_file` (for all sub-modules within a single Verilog file) or `make gen_all_multiple_files` (for each sub-module within its own Verilog file including top-level). The Verilog files will be created in the `generated-rtl` directory. Be sure that commands are run from `../../scripts` directory.
+
+ * `generated-rtl/radix2`: SDF-FFT with a butterfly structure of radix 2.
+ * `generated-rtl/radix22`: SDF-FFT with a butterfly structure of radix 2^2.
+
+Each sub-directory contains the file `mem.conf`, listing the SRAM macros used in the design. The top-level module is always named `SDFFT_size_[numPoints]_width_[word_size]_radix_[sdfRadix]_bitreverse_[useBitReverse]`.
+
+The sub-directory name follows the pattern:
+
+`sdffft_size_[numPoints]_width_[word_size]_bitreverse_[useBitReverse]`
+
+When the `useBitReverse` parameter is set to 1, additional SRAM memories are utilized in the design.
